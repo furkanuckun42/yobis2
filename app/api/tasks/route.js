@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendSystemNotification } from '@/lib/notifications'
+import { sendSystemNotification, notifyAdmins } from '@/lib/notifications'
 
 // 1. Görevleri Listele
 export async function GET(request) {
@@ -33,6 +33,8 @@ export async function GET(request) {
 // 2. Görev Oluştur
 export async function POST(request) {
   try {
+    const requesterId = request.headers.get('x-requester-id')
+
     const { title, description, assignedUserId, dueDate, status } = await request.json()
 
     if (!title) {
@@ -49,9 +51,9 @@ export async function POST(request) {
       }
     })
 
-    // Görev birine atandıysa ona bildirim oluştur
-    if (assignedUserId) {
-      await sendSystemNotification({
+    // Görev birine atandıysa ve atayan kişi kendisi değilse bildirim gönder
+    if (assignedUserId && assignedUserId !== requesterId) {
+      sendSystemNotification({
         userId: assignedUserId,
         message: `Size yeni bir görev atandı: ${title}`,
         tab: 'tasks'
@@ -109,9 +111,9 @@ export async function PUT(request) {
       }
     }
 
-    // Eğer yeni bir kullanıcıya atandıysa veya atanan kişi değiştiyse yeni kişiye bildirim gönder
-    if (assignedUserId && assignedUserId !== existingTask.assignedUserId) {
-      await sendSystemNotification({
+    // Eğer yeni bir kullanıcıya atandıysa veya atanan kişi değiştiyse (ve kişi kendi kendine değilse) bildirim gönder
+    if (assignedUserId && assignedUserId !== existingTask.assignedUserId && assignedUserId !== requesterId) {
+      sendSystemNotification({
         userId: assignedUserId,
         message: `Size yeni bir görev atandı: ${title || updatedTask.title}`,
         tab: 'tasks'
@@ -120,45 +122,22 @@ export async function PUT(request) {
 
     // Admin dışındaki kullanıcıların yaptığı değişiklikleri admine bildirim olarak gönder
     if (requesterRole !== 'admin' && requesterId) {
-      try {
-        const updater = await prisma.user.findUnique({ where: { id: requesterId } })
-        const updaterName = updater?.displayName || updater?.username || 'Personel'
-        const admins = await prisma.user.findMany({
-          where: { role: 'admin' }
-        })
-        for (const admin of admins) {
-          await sendSystemNotification({
-            userId: admin.id,
-            message: `${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
-            tab: 'tasks'
-          })
+      ;(async () => {
+        try {
+          const updater = await prisma.user.findUnique({ where: { id: requesterId } })
+          const updaterName = updater?.displayName || updater?.username || 'Personel'
+          const admins = await prisma.user.findMany({ where: { role: 'admin' } })
+          for (const admin of admins) {
+            sendSystemNotification({
+              userId: admin.id,
+              message: `${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
+              tab: 'tasks'
+            })
+          }
+        } catch (err) {
+          console.error('Görev güncelleme bildirim hatası:', err)
         }
-      } catch (err) {
-        console.error('Görev güncelleme bildirim hatası:', err)
-      }
-    } else if (updatedTask.projectId) {
-      // Eğer görev bir projeyle ilişkiliyse, yöneticilere (admin) bildirim gönder (kendi kendine bildirim gitmesin)
-      try {
-        const project = await prisma.project.findUnique({
-          where: { id: updatedTask.projectId }
-        })
-        const admins = await prisma.user.findMany({
-          where: { role: 'admin' }
-        })
-        const projectName = project ? project.name : 'Çalışma'
-        const statusText = status !== undefined ? `durumu "${status}" yapıldı` : 'güncellendi'
-
-        for (const admin of admins) {
-          if (admin.id === requesterId) continue;
-          await sendSystemNotification({
-            userId: admin.id,
-            message: `"${projectName}" çalışmasının "${updatedTask.title}" görevi ${statusText}.`,
-            tab: 'tasks'
-          })
-        }
-      } catch (err) {
-        console.error('Proje görevi bildirim hatası:', err)
-      }
+      })()
     }
 
     return NextResponse.json(updatedTask)

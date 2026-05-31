@@ -8,9 +8,6 @@ export async function POST(request) {
     if (!userId) {
       return NextResponse.json({ error: 'Yetkisiz işlem. Oturum açmalısınız.' }, { status: 401 })
     }
-    if (requesterRole !== 'admin') {
-      return NextResponse.json({ error: 'Sadece yöneticiler anlık bildirimlere abone olabilir.' }, { status: 403 })
-    }
 
     const { subscription } = await request.json()
     if (!subscription || !subscription.endpoint || !subscription.keys) {

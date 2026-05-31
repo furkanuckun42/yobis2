@@ -333,7 +333,9 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-requested-with': 'XMLHttpRequest'
+          'x-requested-with': 'XMLHttpRequest',
+          'x-requester-id': currentUser?.id || '',
+          'x-requester-role': currentUser?.role || ''
         },
         body: JSON.stringify({ subscription })
       })
@@ -844,7 +846,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {pushSupported && !isPushSubscribed && currentUser?.role === 'admin' && (
+                  {pushSupported && !isPushSubscribed && (
                     <button
                       onClick={subscribeToPushNotifications}
                       disabled={subscribingPush}
