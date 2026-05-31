@@ -42,8 +42,32 @@ export async function GET() {
     // 4. Net Cari Durum (Alacaklarımız - Borçlarımız)
     const customers = await prisma.customer.findMany()
     const caris = await prisma.cari.findMany()
-    const totalAlacak = customers.reduce((sum, customer) => sum + customer.currentBalance, 0)
-    const totalBorc = caris.reduce((sum, cari) => sum + cari.currentBalance, 0)
+
+    let totalAlacak = 0
+    let totalBorc = 0
+
+    // Müşteri Bakiyeleri:
+    // Müşteri bakiyesi > 0 ise alacak (onların bize borcu)
+    // Müşteri bakiyesi < 0 ise borç (bizim onlara borcumuz - fazla ödeme)
+    customers.forEach(customer => {
+      if (customer.currentBalance > 0) {
+        totalAlacak += customer.currentBalance
+      } else if (customer.currentBalance < 0) {
+        totalBorc += Math.abs(customer.currentBalance)
+      }
+    })
+
+    // Cari Bakiyeleri:
+    // Cari bakiyesi > 0 ise borç (bizim onlara borcumuz)
+    // Cari bakiyesi < 0 ise alacak (onların bize borcu - fazla ödeme)
+    caris.forEach(cari => {
+      if (cari.currentBalance > 0) {
+        totalBorc += cari.currentBalance
+      } else if (cari.currentBalance < 0) {
+        totalAlacak += Math.abs(cari.currentBalance)
+      }
+    })
+
     const netCariStatus = totalAlacak - totalBorc
 
     // En Yakın Teslimatlar (Teslim edilmemiş projeler, yakından uzağa doğru sıralı)
