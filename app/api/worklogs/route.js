@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/logger'
+import { notifyAdmins } from '@/lib/notifications'
 
 export async function GET(request) {
   try {
@@ -109,6 +110,12 @@ export async function POST(request) {
 
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('INSERT', 'WorkLog', log.id, log, requesterUsername)
+
+    await notifyAdmins({
+      message: `[İş Kayıt] ${requesterUsername}, ${targetEmployee.name} için yeni çalışma kaydı ekledi: ${type} - ${rate} TL`,
+      tab: 'worklogs'
+    })
+
     return NextResponse.json(log)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -170,6 +177,15 @@ export async function PUT(request) {
         await logAction('UPDATE', 'WorkLog', targetId, existing, requesterUsername)
         updatedLogs.push(updated)
       }
+
+      if (updatedLogs.length > 0) {
+        const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
+        await notifyAdmins({
+          message: `[İş Kayıt] ${requesterUsername}, ${updatedLogs.length} adet çalışma kaydının ödeme durumunu "${status}" olarak güncelledi.`,
+          tab: 'worklogs'
+        })
+      }
+
       return NextResponse.json({ success: true, count: updatedLogs.length })
     }
 
@@ -261,6 +277,12 @@ export async function PUT(request) {
 
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('UPDATE', 'WorkLog', id, existing, requesterUsername)
+
+    await notifyAdmins({
+      message: `[İş Kayıt] ${requesterUsername}, ${existing.employee.name} adına ait ${new Date(existing.date).toLocaleDateString('tr-TR')} tarihli çalışma kaydını güncelledi.`,
+      tab: 'worklogs'
+    })
+
     return NextResponse.json(updatedLog)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -310,6 +332,11 @@ export async function DELETE(request) {
     await prisma.workLog.delete({ where: { id } })
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('DELETE', 'WorkLog', id, existing, requesterUsername)
+
+    await notifyAdmins({
+      message: `[İş Kayıt] ${requesterUsername}, ${existing.employee.name} adına ait ${new Date(existing.date).toLocaleDateString('tr-TR')} tarihli çalışma kaydını sildi.`,
+      tab: 'worklogs'
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

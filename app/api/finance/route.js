@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/logger'
+import { notifyAdmins } from '@/lib/notifications'
 
 export async function GET() {
   try {
@@ -90,6 +91,12 @@ export async function POST(request) {
     
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('INSERT', 'Finance', record.id, record, requesterUsername)
+
+    await notifyAdmins({
+      message: `[Finans] ${requesterUsername} yeni bir ${type === 'GELIR' ? 'Gelir' : 'Gider'} işlemi ekledi: ${parsedAmount} TL - "${description || ''}" (${finCategory})`,
+      tab: 'finance'
+    })
+
     return NextResponse.json(record)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -128,6 +135,12 @@ export async function PUT(request) {
     
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('UPDATE', 'Finance', id, existing, requesterUsername)
+
+    await notifyAdmins({
+      message: `[Finans] ${requesterUsername}, ${existing.amount} TL tutarındaki finansal kaydı güncelledi: "${existing.description || ''}"`,
+      tab: 'finance'
+    })
+
     return NextResponse.json(record)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -188,7 +201,12 @@ export async function DELETE(request) {
     await prisma.finance.delete({ where: { id } })
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('DELETE', 'Finance', id, existing, requesterUsername)
-    
+
+    await notifyAdmins({
+      message: `[Finans] ${requesterUsername}, ${existing.amount} TL tutarındaki finansal kaydı sildi: "${existing.description || ''}"`,
+      tab: 'finance'
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

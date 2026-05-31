@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/logger'
+import { notifyAdmins } from '@/lib/notifications'
 
 export async function GET() {
   try {
@@ -41,6 +42,12 @@ export async function POST(request) {
 
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('INSERT', 'Cari', cari.id, cari, requesterUsername)
+    
+    await notifyAdmins({
+      message: `[Cari] ${requesterUsername} yeni bir cari hesap ekledi: "${name}"`,
+      tab: 'caris'
+    })
+
     return NextResponse.json(cari)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -113,6 +120,21 @@ export async function PUT(request) {
 
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('UPDATE', 'Cari', id, existing, requesterUsername)
+
+    // Adminleri bilgilendir
+    if (payAmount !== undefined) {
+      const parsedPayAmount = parseFloat(payAmount || 0)
+      await notifyAdmins({
+        message: `[Cari] ${requesterUsername}, "${existing.name}" cari hesabına ${parsedPayAmount} TL ödeme yaptı.`,
+        tab: 'caris'
+      })
+    } else {
+      await notifyAdmins({
+        message: `[Cari] ${requesterUsername}, "${existing.name}" cari profilini güncelledi.`,
+        tab: 'caris'
+      })
+    }
+
     return NextResponse.json(cari)
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -149,6 +171,11 @@ export async function DELETE(request) {
 
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('DELETE', 'Cari', id, existing, requesterUsername)
+
+    await notifyAdmins({
+      message: `[Cari] ${requesterUsername}, "${existing.name}" cari hesabını sildi.`,
+      tab: 'caris'
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
