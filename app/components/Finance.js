@@ -562,8 +562,6 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
                 required
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                min={!isAdmin ? todayStr : undefined}
-                max={!isAdmin ? todayStr : undefined}
                 className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500/40 focus:bg-violet-950/30 transition"
               />
             </div>

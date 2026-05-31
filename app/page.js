@@ -492,7 +492,7 @@ export default function Home() {
 
   // 1.1 Kullanıcı değiştiğinde Push Abonelik durumunu kontrol et
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.role === 'admin') {
       checkPushSubscriptionStatus()
     }
   }, [currentUser])
@@ -846,7 +846,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {pushSupported && !isPushSubscribed && (
+                  {pushSupported && !isPushSubscribed && currentUser?.role === 'admin' && (
                     <button
                       onClick={subscribeToPushNotifications}
                       disabled={subscribingPush}

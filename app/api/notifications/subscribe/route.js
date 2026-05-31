@@ -4,8 +4,12 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request) {
   try {
     const userId = request.headers.get('x-requester-id')
+    const requesterRole = request.headers.get('x-requester-role')
     if (!userId) {
       return NextResponse.json({ error: 'Yetkisiz işlem. Oturum açmalısınız.' }, { status: 401 })
+    }
+    if (requesterRole !== 'admin') {
+      return NextResponse.json({ error: 'Sadece yöneticiler anlık bildirimlere abone olabilir.' }, { status: 403 })
     }
 
     const { subscription } = await request.json()

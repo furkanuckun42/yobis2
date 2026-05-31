@@ -3,6 +3,23 @@ import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/logger'
 import { notifyAdmins } from '@/lib/notifications'
 
+async function getKasaBalance() {
+  try {
+    const aggGelir = await prisma.finance.aggregate({
+      where: { category: 'KASA', type: 'GELIR' },
+      _sum: { amount: true }
+    })
+    const aggGider = await prisma.finance.aggregate({
+      where: { category: 'KASA', type: 'GIDER' },
+      _sum: { amount: true }
+    })
+    return (aggGelir._sum.amount || 0) - (aggGider._sum.amount || 0)
+  } catch (err) {
+    console.error('Kasa bakiye hesaplama hatası:', err)
+    return 0
+  }
+}
+
 export async function GET() {
   try {
     const records = await prisma.finance.findMany({
@@ -92,8 +109,10 @@ export async function POST(request) {
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('INSERT', 'Finance', record.id, record, requesterUsername)
 
+    const currentKasa = await getKasaBalance()
+
     await notifyAdmins({
-      message: `[Finans] ${requesterUsername} yeni bir ${type === 'GELIR' ? 'Gelir' : 'Gider'} işlemi ekledi: ${parsedAmount} TL - "${description || ''}" (${finCategory})`,
+      message: `${type === 'GELIR' ? '📈 Gelir Eklendi' : '📉 Gider Eklendi'}: ${requesterUsername} yeni bir işlem girdi. Tutar: ${parsedAmount} TL | Açıklama: "${description || 'Belirtilmedi'}" (${finCategory === 'KASA' ? 'Kasa' : 'Cari'}) | Aktif Kasa: ${currentKasa} TL`,
       tab: 'finance'
     })
 
@@ -136,8 +155,10 @@ export async function PUT(request) {
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('UPDATE', 'Finance', id, existing, requesterUsername)
 
+    const currentKasa = await getKasaBalance()
+
     await notifyAdmins({
-      message: `[Finans] ${requesterUsername}, ${existing.amount} TL tutarındaki finansal kaydı güncelledi: "${existing.description || ''}"`,
+      message: `✍️ Finans Güncellendi: ${requesterUsername}, ${existing.amount} TL tutarındaki işlemi düzenledi. Yeni Açıklama: "${record.description || 'Belirtilmedi'}" | Aktif Kasa: ${currentKasa} TL`,
       tab: 'finance'
     })
 
@@ -202,8 +223,10 @@ export async function DELETE(request) {
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
     await logAction('DELETE', 'Finance', id, existing, requesterUsername)
 
+    const currentKasa = await getKasaBalance()
+
     await notifyAdmins({
-      message: `[Finans] ${requesterUsername}, ${existing.amount} TL tutarındaki finansal kaydı sildi: "${existing.description || ''}"`,
+      message: `🗑️ Finans Silindi: ${requesterUsername}, ${existing.amount} TL tutarındaki işlemi sildi. Açıklama: "${existing.description || 'Belirtilmedi'}" | Aktif Kasa: ${currentKasa} TL`,
       tab: 'finance'
     })
 

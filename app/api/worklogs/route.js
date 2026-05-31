@@ -112,7 +112,7 @@ export async function POST(request) {
     await logAction('INSERT', 'WorkLog', log.id, log, requesterUsername)
 
     await notifyAdmins({
-      message: `[İş Kayıt] ${requesterUsername}, ${targetEmployee.name} için yeni çalışma kaydı ekledi: ${type} - ${rate} TL`,
+      message: `👷 İş Kaydı Eklendi: ${requesterUsername}, ${targetEmployee.name} için çalışma kaydı girdi (${type === 'TAM' ? 'Tam Gün' : type === 'YARIM' ? 'Yarım Gün' : 'Uzaktan'} | ${rate} TL)`,
       tab: 'worklogs'
     })
 
@@ -181,7 +181,7 @@ export async function PUT(request) {
       if (updatedLogs.length > 0) {
         const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
         await notifyAdmins({
-          message: `[İş Kayıt] ${requesterUsername}, ${updatedLogs.length} adet çalışma kaydının ödeme durumunu "${status}" olarak güncelledi.`,
+          message: `💳 Toplu Ödeme Güncellemesi: ${requesterUsername}, ${updatedLogs.length} adet yevmiyenin ödeme durumunu "${status === 'ODENDI' ? 'Ödendi' : 'Ödenmedi'}" yaptı.`,
           tab: 'worklogs'
         })
       }
@@ -279,7 +279,7 @@ export async function PUT(request) {
     await logAction('UPDATE', 'WorkLog', id, existing, requesterUsername)
 
     await notifyAdmins({
-      message: `[İş Kayıt] ${requesterUsername}, ${existing.employee.name} adına ait ${new Date(existing.date).toLocaleDateString('tr-TR')} tarihli çalışma kaydını güncelledi.`,
+      message: `✍️ İş Kaydı Güncellendi: ${requesterUsername}, ${existing.employee.name} adına ait çalışma kaydını düzenledi.`,
       tab: 'worklogs'
     })
 
@@ -334,7 +334,7 @@ export async function DELETE(request) {
     await logAction('DELETE', 'WorkLog', id, existing, requesterUsername)
 
     await notifyAdmins({
-      message: `[İş Kayıt] ${requesterUsername}, ${existing.employee.name} adına ait ${new Date(existing.date).toLocaleDateString('tr-TR')} tarihli çalışma kaydını sildi.`,
+      message: `🗑️ İş Kaydı Silindi: ${requesterUsername}, ${existing.employee.name} adına ait çalışma kaydını sildi.`,
       tab: 'worklogs'
     })
 

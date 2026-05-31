@@ -44,7 +44,7 @@ export async function POST(request) {
     await logAction('INSERT', 'Cari', cari.id, cari, requesterUsername)
     
     await notifyAdmins({
-      message: `[Cari] ${requesterUsername} yeni bir cari hesap ekledi: "${name}"`,
+      message: `📂 Cari Eklendi: ${requesterUsername} yeni bir cari hesap oluşturdu: "${name}"`,
       tab: 'caris'
     })
 
@@ -125,12 +125,12 @@ export async function PUT(request) {
     if (payAmount !== undefined) {
       const parsedPayAmount = parseFloat(payAmount || 0)
       await notifyAdmins({
-        message: `[Cari] ${requesterUsername}, "${existing.name}" cari hesabına ${parsedPayAmount} TL ödeme yaptı.`,
+        message: `💸 Ödeme Yapıldı: ${requesterUsername}, "${existing.name}" cari hesabına ${parsedPayAmount} TL ödedi.`,
         tab: 'caris'
       })
     } else {
       await notifyAdmins({
-        message: `[Cari] ${requesterUsername}, "${existing.name}" cari profilini güncelledi.`,
+        message: `✍️ Cari Güncellendi: ${requesterUsername}, "${existing.name}" cari bilgilerini güncelledi.`,
         tab: 'caris'
       })
     }
@@ -173,7 +173,7 @@ export async function DELETE(request) {
     await logAction('DELETE', 'Cari', id, existing, requesterUsername)
 
     await notifyAdmins({
-      message: `[Cari] ${requesterUsername}, "${existing.name}" cari hesabını sildi.`,
+      message: `🗑️ Cari Silindi: ${requesterUsername}, "${existing.name}" cari hesabını kaldırdı.`,
       tab: 'caris'
     })
 
