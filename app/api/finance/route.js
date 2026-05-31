@@ -160,7 +160,8 @@ export async function POST(request) {
 
     await notifyAdmins({
       message: `${emoji} ${userFullName}, yeni bir ${typeStr} girdi. ${descStr}${parsedAmount}TL. Güncel Kasa: ${currentKasa}TL.`,
-      tab: 'finance'
+      tab: 'finance',
+      requesterRole
     })
 
     return NextResponse.json(record)
@@ -223,7 +224,8 @@ export async function PUT(request) {
 
     await notifyAdmins({
       message: `✍️ ${userFullName}, bir ${typeStr} işlemini güncelledi. ${descStr}${existing.amount}TL. Güncel Kasa: ${currentKasa}TL.`,
-      tab: 'finance'
+      tab: 'finance',
+      requesterRole
     })
 
     return NextResponse.json(record)
@@ -295,7 +297,8 @@ export async function DELETE(request) {
 
     await notifyAdmins({
       message: `🗑️ ${userFullName}, bir ${typeStr} işlemini sildi. ${descStr}${existing.amount}TL. Güncel Kasa: ${currentKasa}TL.`,
-      tab: 'finance'
+      tab: 'finance',
+      requesterRole
     })
 
     return NextResponse.json({ success: true })

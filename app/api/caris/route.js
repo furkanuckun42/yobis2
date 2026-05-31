@@ -45,7 +45,8 @@ export async function POST(request) {
     
     await notifyAdmins({
       message: `📂 Cari Eklendi: ${requesterUsername} yeni bir cari hesap oluşturdu: "${name}"`,
-      tab: 'caris'
+      tab: 'caris',
+      requesterRole
     })
 
     return NextResponse.json(cari)
@@ -126,12 +127,14 @@ export async function PUT(request) {
       const parsedPayAmount = parseFloat(payAmount || 0)
       await notifyAdmins({
         message: `💸 Ödeme Yapıldı: ${requesterUsername}, "${existing.name}" cari hesabına ${parsedPayAmount} TL ödedi.`,
-        tab: 'caris'
+        tab: 'caris',
+        requesterRole
       })
     } else {
       await notifyAdmins({
         message: `✍️ Cari Güncellendi: ${requesterUsername}, "${existing.name}" cari bilgilerini güncelledi.`,
-        tab: 'caris'
+        tab: 'caris',
+        requesterRole
       })
     }
 
@@ -174,7 +177,8 @@ export async function DELETE(request) {
 
     await notifyAdmins({
       message: `🗑️ Cari Silindi: ${requesterUsername}, "${existing.name}" cari hesabını kaldırdı.`,
-      tab: 'caris'
+      tab: 'caris',
+      requesterRole
     })
 
     return NextResponse.json({ success: true })

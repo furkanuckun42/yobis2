@@ -113,7 +113,8 @@ export async function POST(request) {
 
     await notifyAdmins({
       message: `👷 İş Kaydı Eklendi: ${requesterUsername}, ${targetEmployee.name} için çalışma kaydı girdi (${type === 'TAM' ? 'Tam Gün' : type === 'YARIM' ? 'Yarım Gün' : 'Uzaktan'} | ${rate} TL)`,
-      tab: 'worklogs'
+      tab: 'worklogs',
+      requesterRole
     })
 
     return NextResponse.json(log)
@@ -182,7 +183,8 @@ export async function PUT(request) {
         const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
         await notifyAdmins({
           message: `💳 Toplu Ödeme Güncellemesi: ${requesterUsername}, ${updatedLogs.length} adet yevmiyenin ödeme durumunu "${status === 'ODENDI' ? 'Ödendi' : 'Ödenmedi'}" yaptı.`,
-          tab: 'worklogs'
+          tab: 'worklogs',
+          requesterRole
         })
       }
 
@@ -280,7 +282,8 @@ export async function PUT(request) {
 
     await notifyAdmins({
       message: `✍️ İş Kaydı Güncellendi: ${requesterUsername}, ${existing.employee.name} adına ait çalışma kaydını düzenledi.`,
-      tab: 'worklogs'
+      tab: 'worklogs',
+      requesterRole
     })
 
     return NextResponse.json(updatedLog)
@@ -335,7 +338,8 @@ export async function DELETE(request) {
 
     await notifyAdmins({
       message: `🗑️ İş Kaydı Silindi: ${requesterUsername}, ${existing.employee.name} adına ait çalışma kaydını sildi.`,
-      tab: 'worklogs'
+      tab: 'worklogs',
+      requesterRole
     })
 
     return NextResponse.json({ success: true })
