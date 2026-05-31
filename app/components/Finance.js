@@ -115,6 +115,12 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
       addToast('Cari işlem için lütfen bir firma seçin!', 'warning')
       return
     }
+    
+    const todayStr = getLocalDateString()
+    if (form.date && form.date > todayStr) {
+      addToast('Gelecekteki bir tarihe işlem yapılamaz!', 'warning')
+      return
+    }
 
     try {
       const res = await fetch('/api/finance', {
@@ -567,6 +573,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
               <input
                 type="date"
                 required
+                max={todayStr}
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
                 className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500/40 focus:bg-violet-950/30 transition"

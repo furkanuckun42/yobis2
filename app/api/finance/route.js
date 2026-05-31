@@ -74,6 +74,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Eksik alanlar var' }, { status: 400 })
     }
 
+    if (date) {
+      try {
+        const incomingDateStr = new Date(date).toISOString().split('T')[0]
+        const turkeyNow = new Date(new Date().getTime() + 3 * 60 * 60 * 1000)
+        const todayStr = turkeyNow.toISOString().split('T')[0]
+        if (incomingDateStr > todayStr) {
+          return NextResponse.json({ error: 'Gelecekteki bir tarihe işlem yapılamaz.' }, { status: 400 })
+        }
+      } catch (err) {
+        return NextResponse.json({ error: 'Geçersiz tarih formatı.' }, { status: 400 })
+      }
+    }
+
     const parsedAmount = parseFloat(amount)
     const finCategory = category || 'KASA'
 
@@ -142,11 +155,11 @@ export async function POST(request) {
     const currentKasa = await getKasaBalance()
 
     const emoji = type === 'GELIR' ? '💰' : '💸'
-    const typeStr = type === 'GELIR' ? 'gelir' : 'gider'
+    const typeStr = type === 'GELIR' ? 'GELİR' : 'GİDER'
     const descStr = description ? `${description.trim()} ` : ''
 
     await notifyAdmins({
-      message: `${emoji} ${userFullName}, yeni bir işlem girdi. ${typeStr} ${descStr}${parsedAmount}TL. Güncel Bakiye ${currentKasa}TL...`,
+      message: `${emoji} ${userFullName}, yeni bir ${typeStr} girdi. ${descStr}${parsedAmount}TL. Güncel Kasa: ${currentKasa}TL.`,
       tab: 'finance'
     })
 
@@ -168,6 +181,19 @@ export async function PUT(request) {
     
     if (!id) {
       return NextResponse.json({ error: 'ID parametresi zorunludur' }, { status: 400 })
+    }
+
+    if (date) {
+      try {
+        const incomingDateStr = new Date(date).toISOString().split('T')[0]
+        const turkeyNow = new Date(new Date().getTime() + 3 * 60 * 60 * 1000)
+        const todayStr = turkeyNow.toISOString().split('T')[0]
+        if (incomingDateStr > todayStr) {
+          return NextResponse.json({ error: 'Gelecekteki bir tarihe işlem yapılamaz.' }, { status: 400 })
+        }
+      } catch (err) {
+        return NextResponse.json({ error: 'Geçersiz tarih formatı.' }, { status: 400 })
+      }
     }
 
     const existing = await prisma.finance.findUnique({ where: { id } })
@@ -192,11 +218,11 @@ export async function PUT(request) {
 
     const currentKasa = await getKasaBalance()
 
-    const typeStr = existing.type === 'GELIR' ? 'gelir' : 'gider'
+    const typeStr = existing.type === 'GELIR' ? 'GELİR' : 'GİDER'
     const descStr = record.description ? `${record.description.trim()} ` : ''
 
     await notifyAdmins({
-      message: `✍️ ${userFullName}, bir işlemi güncelledi. ${typeStr} ${descStr}${existing.amount}TL. Güncel Bakiye ${currentKasa}TL...`,
+      message: `✍️ ${userFullName}, bir ${typeStr} işlemini güncelledi. ${descStr}${existing.amount}TL. Güncel Kasa: ${currentKasa}TL.`,
       tab: 'finance'
     })
 
@@ -264,11 +290,11 @@ export async function DELETE(request) {
 
     const currentKasa = await getKasaBalance()
 
-    const typeStr = existing.type === 'GELIR' ? 'gelir' : 'gider'
+    const typeStr = existing.type === 'GELIR' ? 'GELİR' : 'GİDER'
     const descStr = existing.description ? `${existing.description.trim()} ` : ''
 
     await notifyAdmins({
-      message: `🗑️ ${userFullName}, bir işlemi sildi. ${typeStr} ${descStr}${existing.amount}TL. Güncel Bakiye ${currentKasa}TL...`,
+      message: `🗑️ ${userFullName}, bir ${typeStr} işlemini sildi. ${descStr}${existing.amount}TL. Güncel Kasa: ${currentKasa}TL.`,
       tab: 'finance'
     })
 
