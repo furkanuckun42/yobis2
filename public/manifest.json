@@ -1,0 +1,17 @@
+{
+  "name": "HD Studio Yönetim Bilgi Sistemi",
+  "short_name": "HD Studio",
+  "description": "HD Studio Yönetim Bilgi Sistemi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#03000a",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

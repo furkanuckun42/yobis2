@@ -1,0 +1,270 @@
+// Prisma schema for HD Studio (SQLite backend)
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Müşteri & Cari Yönetimi Modeli
+model Customer {
+  id              String    @id @default(uuid())
+  name            String
+  phone           String?
+  instagram       String?
+  notes           String?
+  monthlyIncome   Float     @default(0) // Aylık Sabit/Tahmini Gelir
+  startingBalance Float     @default(0) // Başlangıç Cari Bakiyesi
+  currentBalance  Float     @default(0) // Net Cari Durum (Borç/Alacak bakiyesi)
+  projects        Project[]
+  finances        Finance[]
+  attachments     Attachment[]
+  monthlyCards    MonthlyCard[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Proje Modeli
+model Project {
+  id            String           @id @default(uuid())
+  name          String
+  customerId    String
+  customer      Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stage         String           // "Teklif Aşamasında", "Devam Ediyor", "Revize Bekliyor", "Teslime Hazır", "Teslim Edildi"
+  deliveryDate  DateTime
+  budget        Float            @default(0)
+  isArchived    Boolean          @default(false)
+  lastUpdatedBy String?
+  tasks         Task[]
+  attachments   Attachment[]
+  comments      ProjectComment[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([customerId])
+}
+
+// Finans Modeli (Günlük Gelir/Gider Girişi)
+model Finance {
+  id          String    @id @default(uuid())
+  type        String    // "GELIR" veya "GIDER"
+  category    String    @default("KASA") // "KASA" veya "CARI" veya "MUSTERI"
+  amount      Float
+  description String?
+  customerId  String?   // Cari/Müşteri işlemlerinde müşteri ID
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cariId      String?   // Bizim borçlu olduğumuz firma/cari ID
+  cari        Cari?     @relation(fields: [cariId], references: [id], onDelete: SetNull)
+  workLogId   String?   // Yevmiye ödemesiyle ilişkilendirilen İş Kayıt ID'si
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([cariId])
+  @@index([workLogId])
+  @@index([date])
+}
+
+// Ekipman & Envanter Modeli
+model Equipment {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   // "OFIS", "SET", "BAKIM"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Geri Alma (Undo) Sistemi Log Modeli
+model ActionLog {
+  id          String   @id @default(uuid())
+  actionType  String   // "INSERT", "UPDATE", "DELETE"
+  modelName   String   // "Customer", "Project", "Finance", "Equipment"
+  modelId     String
+  previousData String  // JSON formatında eski veri
+  username    String   @default("Sistem")
+  createdAt   DateTime @default(now())
+}
+
+// Google OAuth Yapılandırması ve Token Bilgileri
+model GoogleConfig {
+  id           String   @id @default("main")
+  clientId     String
+  clientSecret String
+  accessToken  String?
+  refreshToken String?
+  expiryDate   String?  // Epoch milisaniye
+  updatedAt    DateTime @updatedAt
+}
+
+// Senkronize Edilen Etkinlikler Modeli
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime
+  time        String?
+  type        String   @default("google") // "google", "project", "equipment", "meeting"
+  googleId    String?  @unique            // Çift kayıtları engellemek için Google Event ID
+  createdAt   DateTime @default(now())
+}
+
+// Kullanıcı Modeli
+model User {
+  id            String           @id @default(uuid())
+  username      String           @unique
+  password      String           // SHA-256 hash olarak saklanacak
+  role          String           // "admin" veya "personel"
+  displayName   String?          // Ad Soyad (opsiyonel)
+  assignedTasks Task[]           @relation("AssignedTasks")
+  notifications Notification[]
+  employee      Employee?
+  comments      ProjectComment[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+// Cari (Bizim borçlu olduğumuz firmalar) Modeli
+model Cari {
+  id              String    @id @default(uuid())
+  name            String
+  phone           String?
+  notes           String?
+  startingBalance Float     @default(0) // Başlangıç Borç Bakiyesi (Bizim onlara borcumuz)
+  currentBalance  Float     @default(0) // Net Borç Durumu (Bizim onlara borcumuz)
+  finances        Finance[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Çalışan Modeli
+model Employee {
+  id           String    @id @default(uuid())
+  name         String
+  userId       String?   @unique
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullDayRate  Float     @default(0) // Tam gün yevmiye ücreti
+  halfDayRate  Float     @default(0) // Yarım gün yevmiye ücreti
+  workLogs     WorkLog[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// İş Kayıt Defteri (Timesheet) Modeli
+model WorkLog {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  type        String   // "TAM" veya "YARIM" veya "UZAKTAN"
+  status      String   @default("ODENMEDI") // "ODENMEDI" veya "ODENDI"
+  amount      Float    // Çalışma günü ücreti (log anındaki oran veya uzaktan özel tutar)
+  description String?  // Uzaktan mesai açıklaması/detayı
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+// Görev Atama Modeli
+model Task {
+  id             String       @id @default(uuid())
+  title          String
+  description    String?
+  status         String       @default("Bekliyor") // "Bekliyor", "Devam Ediyor", "Tamamlandı"
+  dueDate        DateTime?
+  assignedUserId String?
+  assignedUser   User?        @relation("AssignedTasks", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  attachments    Attachment[]
+  monthlyCardItem MonthlyCardItem?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([projectId])
+  @@index([assignedUserId])
+}
+
+// Bildirim Modeli
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  read      Boolean  @default(false)
+  tab       String?  // Bildirime tıklandığında açılacak sekme (örn: 'tasks', 'projects')
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Eklenti Modeli (Dosya/Fotoğraf)
+model Attachment {
+  id         String    @id @default(uuid())
+  name       String
+  path       String    // Kaydedilen dosya yolu (örn: /uploads/abc.pdf)
+  fileType   String    // Mime type (örn: application/pdf)
+  size       Int       // Dosya boyutu (bayt)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?
+  task       Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId])
+  @@index([projectId])
+  @@index([taskId])
+}
+
+// Proje Yorum Modeli
+model ProjectComment {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([userId])
+}
+
+// Aylık Müşteri Kartı Modeli
+model MonthlyCard {
+  id          String            @id @default(uuid())
+  customerId  String
+  customer    Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  month       String            // "YYYY-MM" formatında
+  status      String            @default("ACTIVE") // "ACTIVE", "COMPLETED", "ARCHIVED"
+  items       MonthlyCardItem[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([customerId, month])
+  @@index([customerId])
+}
+
+// Aylık Kart Yapılacaklar (Checklist) Maddesi
+model MonthlyCardItem {
+  id             String      @id @default(uuid())
+  cardId         String
+  card           MonthlyCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  title          String
+  completed      Boolean     @default(false)
+  taskId         String?     @unique
+  task           Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([cardId])
+  @@index([taskId])
+}
+
