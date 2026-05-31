@@ -20,6 +20,35 @@ async function getKasaBalance() {
   }
 }
 
+async function getUserFullName(request) {
+  const userId = request.headers.get('x-requester-id')
+  if (!userId) {
+    const headerUsername = request.headers.get('x-requester-username') || 'Sistem'
+    try {
+      return decodeURIComponent(headerUsername)
+    } catch {
+      return headerUsername
+    }
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true, username: true }
+    })
+    if (user) {
+      return user.displayName || user.username
+    }
+  } catch (err) {
+    console.error('Kullanıcı adı çekme hatası:', err)
+  }
+  const headerUsername = request.headers.get('x-requester-username') || 'Sistem'
+  try {
+    return decodeURIComponent(headerUsername)
+  } catch {
+    return headerUsername
+  }
+}
+
 export async function GET() {
   try {
     const records = await prisma.finance.findMany({
@@ -107,12 +136,17 @@ export async function POST(request) {
     }
     
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
+    const userFullName = await getUserFullName(request)
     await logAction('INSERT', 'Finance', record.id, record, requesterUsername)
 
     const currentKasa = await getKasaBalance()
 
+    const emoji = type === 'GELIR' ? '💰' : '💸'
+    const typeStr = type === 'GELIR' ? 'gelir' : 'gider'
+    const descStr = description ? `${description.trim()} ` : ''
+
     await notifyAdmins({
-      message: `${type === 'GELIR' ? '📈 Gelir Eklendi' : '📉 Gider Eklendi'}: ${requesterUsername} yeni bir işlem girdi. Tutar: ${parsedAmount} TL | Açıklama: "${description || 'Belirtilmedi'}" (${finCategory === 'KASA' ? 'Kasa' : 'Cari'}) | Aktif Kasa: ${currentKasa} TL`,
+      message: `${emoji} ${userFullName}, yeni bir işlem girdi. ${typeStr} ${descStr}${parsedAmount}TL. Güncel Bakiye ${currentKasa}TL...`,
       tab: 'finance'
     })
 
@@ -153,12 +187,16 @@ export async function PUT(request) {
     })
     
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
+    const userFullName = await getUserFullName(request)
     await logAction('UPDATE', 'Finance', id, existing, requesterUsername)
 
     const currentKasa = await getKasaBalance()
 
+    const typeStr = existing.type === 'GELIR' ? 'gelir' : 'gider'
+    const descStr = record.description ? `${record.description.trim()} ` : ''
+
     await notifyAdmins({
-      message: `✍️ Finans Güncellendi: ${requesterUsername}, ${existing.amount} TL tutarındaki işlemi düzenledi. Yeni Açıklama: "${record.description || 'Belirtilmedi'}" | Aktif Kasa: ${currentKasa} TL`,
+      message: `✍️ ${userFullName}, bir işlemi güncelledi. ${typeStr} ${descStr}${existing.amount}TL. Güncel Bakiye ${currentKasa}TL...`,
       tab: 'finance'
     })
 
@@ -221,12 +259,16 @@ export async function DELETE(request) {
     
     await prisma.finance.delete({ where: { id } })
     const requesterUsername = request.headers.get('x-requester-username') || 'Sistem'
+    const userFullName = await getUserFullName(request)
     await logAction('DELETE', 'Finance', id, existing, requesterUsername)
 
     const currentKasa = await getKasaBalance()
 
+    const typeStr = existing.type === 'GELIR' ? 'gelir' : 'gider'
+    const descStr = existing.description ? `${existing.description.trim()} ` : ''
+
     await notifyAdmins({
-      message: `🗑️ Finans Silindi: ${requesterUsername}, ${existing.amount} TL tutarındaki işlemi sildi. Açıklama: "${existing.description || 'Belirtilmedi'}" | Aktif Kasa: ${currentKasa} TL`,
+      message: `🗑️ ${userFullName}, bir işlemi sildi. ${typeStr} ${descStr}${existing.amount}TL. Güncel Bakiye ${currentKasa}TL...`,
       tab: 'finance'
     })
 

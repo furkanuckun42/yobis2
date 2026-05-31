@@ -19,6 +19,13 @@ import {
   Download,
   Printer
 } from 'lucide-react'
+
+// Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
+const getLocalDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
 import Charts from '@/app/components/Charts'
 
 export default function Finance({ onAction, currentUser, addToast, showConfirm }) {
@@ -37,7 +44,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
     category: 'KASA', // 'KASA' veya 'CARI'
     amount: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     customerId: '',
     cariId: ''
   })
@@ -92,7 +99,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
       category: 'KASA',
       amount: '',
       description: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       customerId: '',
       cariId: ''
     })
@@ -159,7 +166,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
   }
 
   // Filtreleme
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = getLocalDateString()
 
   // Benzersiz ayları al
   const uniqueMonths = Array.from(
@@ -275,7 +282,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
   const baseRecords = isAdmin
     ? records
     : records.filter(r => {
-        const recDate = new Date(r.date).toISOString().split('T')[0]
+        const recDate = getLocalDateString(new Date(r.date))
         return recDate === todayStr
       })
 
@@ -294,7 +301,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
   const netBalance = totalIncome - totalExpense
 
   // Bugünün kasa toplamları (personel)
-  const todayKasa = kasaRecords.filter(r => new Date(r.date).toISOString().split('T')[0] === todayStr)
+  const todayKasa = kasaRecords.filter(r => getLocalDateString(new Date(r.date)) === todayStr)
   const todayIncome = todayKasa.filter(r => r.type === 'GELIR').reduce((sum, r) => sum + r.amount, 0)
   const todayExpense = todayKasa.filter(r => r.type === 'GIDER').reduce((sum, r) => sum + r.amount, 0)
 

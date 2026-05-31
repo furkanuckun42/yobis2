@@ -20,6 +20,20 @@ import {
   Printer
 } from 'lucide-react'
 
+// Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
+const getLocalDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
+
+// Yerel saat dilimine göre YYYY-MM formatında ay üretir (timezone-safe)
+const getLocalMonthString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().substring(0, 7)
+}
+
 export default function MonthlyCustomers({ currentUser, addToast, showConfirm }) {
   const [cards, setCards] = useState([])
   const [customers, setCustomers] = useState([])
@@ -28,7 +42,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
   
   // Filtering & Selected Month
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    return new Date().toISOString().substring(0, 7) // "YYYY-MM"
+    return getLocalMonthString()
   })
 
   // Modal State for New Card
@@ -776,7 +790,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                           <Calendar className="w-3 h-3 text-violet-400 mr-0.5 pointer-events-none" />
                           <input
                             type="date"
-                            value={item.task?.dueDate ? new Date(item.task.dueDate).toISOString().substring(0, 10) : ''}
+                            value={item.task?.dueDate ? getLocalDateString(new Date(item.task.dueDate)) : ''}
                             onChange={(e) => handleUpdateItemDate(item.id, e.target.value)}
                             className="bg-transparent border-none text-[9px] text-violet-300 w-[74px] focus:outline-none cursor-pointer font-bold p-0 h-4"
                             title="Teslim Tarihi"

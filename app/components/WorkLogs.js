@@ -13,6 +13,13 @@ import {
   DollarSign
 } from 'lucide-react'
 
+// Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
+const getLocalDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
+
 export default function WorkLogs({ currentUser, addToast, showConfirm }) {
   const [logs, setLogs] = useState([])
   const [employees, setEmployees] = useState([])
@@ -24,7 +31,7 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
   // Form State
   const [form, setForm] = useState({
     employeeId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     type: 'TAM', // 'TAM' veya 'YARIM' veya 'UZAKTAN'
     amount: '',
     description: ''
@@ -122,7 +129,7 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
         setForm({
           ...form,
           employeeId: isAdmin ? form.employeeId : '',
-          date: new Date().toISOString().split('T')[0],
+          date: getLocalDateString(),
           type: 'TAM',
           amount: '',
           description: ''

@@ -21,6 +21,13 @@ import {
   Trash
 } from 'lucide-react'
 
+// Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
+const getLocalDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
+
 export default function Projects({ onAction, currentUser, addToast, showConfirm }) {
   const [projects, setProjects] = useState([])
   const [customers, setCustomers] = useState([])
@@ -203,7 +210,7 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
     
     // Format date to YYYY-MM-DD
     const rawDate = new Date(project.deliveryDate)
-    const formattedDate = rawDate.toISOString().split('T')[0]
+    const formattedDate = getLocalDateString(rawDate)
 
     setForm({
       name: project.name,

@@ -16,8 +16,11 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Veritabanı dosyası bulunamadı.' }, { status: 404 })
     }
 
-    const dbBuffer = fs.readFileSync(dbPath)
-    const dateStr = new Date().toISOString().split('T')[0]
+    const getTurkeyDateStr = () => {
+      const d = new Date(Date.now() + 3 * 60 * 60 * 1000)
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+    }
+    const dateStr = getTurkeyDateStr()
     
     return new NextResponse(dbBuffer, {
       status: 200,

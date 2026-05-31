@@ -24,9 +24,9 @@ export async function GET() {
       }
     })
 
-    // 3. Aylık Tahmini Gelir (Bu ayın aktif/arşivlenmemiş Aylık Müşteri Kartlarının gelir toplamı)
-    const currentDate = new Date()
-    const currentMonthStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+    // 3. Aylık Tahmini Gelir (Bu ayın aktif/arşivlenmemiş Aylık Müşteri Kartlarının gelir toplamı - Türkiye Saati Uyumlu)
+    const currentDate = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    const currentMonthStr = `${currentDate.getUTCFullYear()}-${String(currentDate.getUTCMonth() + 1).padStart(2, '0')}`
 
     const activeMonthlyCards = await prisma.monthlyCard.findMany({
       where: {
@@ -61,22 +61,22 @@ export async function GET() {
       take: 10
     })
 
-    // 5. Son 6 Ayın Finansal Trend Verisi
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-    sixMonthsAgo.setDate(1)
-    sixMonthsAgo.setHours(0, 0, 0, 0)
+    // 5. Son 6 Ayın Finansal Trend Verisi (Türkiye Saati Uyumlu)
+    const sixMonthsAgo = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 5)
+    sixMonthsAgo.setUTCDate(1)
+    sixMonthsAgo.setUTCHours(0, 0, 0, 0)
 
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
     const monthsList = []
     
     for (let i = 5; i >= 0; i--) {
-      const d = new Date()
-      d.setMonth(d.getMonth() - i)
+      const d = new Date(Date.now() + 3 * 60 * 60 * 1000)
+      d.setUTCMonth(d.getUTCMonth() - i)
       monthsList.push({
-        year: d.getFullYear(),
-        monthNum: d.getMonth(),
-        month: monthNames[d.getMonth()],
+        year: d.getUTCFullYear(),
+        monthNum: d.getUTCMonth(),
+        month: monthNames[d.getUTCMonth()],
         income: 0,
         expense: 0,
         profit: 0
@@ -91,8 +91,10 @@ export async function GET() {
 
     chartFinances.forEach(record => {
       const rDate = new Date(record.date)
-      const rYear = rDate.getFullYear()
-      const rMonth = rDate.getMonth()
+      // DB kaydını Türkiye zamanına göre değerlendir
+      const turkeyDate = new Date(rDate.getTime() + 3 * 60 * 60 * 1000)
+      const rYear = turkeyDate.getUTCFullYear()
+      const rMonth = turkeyDate.getUTCMonth()
 
       const monthObj = monthsList.find(m => m.year === rYear && m.monthNum === rMonth)
       if (monthObj) {

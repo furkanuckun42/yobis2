@@ -631,7 +631,6 @@ export default function Home() {
   if (!currentUser) {
     return (
       <div className="flex min-h-screen bg-[#03000a] items-center justify-center relative overflow-hidden p-4">
-        <div className="absolute inset-0 stars-bg pointer-events-none z-0"></div>
         {/* Neon Işıklar */}
         <div className="absolute top-[-10%] left-[20%] w-[500px] h-[500px] rounded-full bg-violet-600/15 blur-[120px] pointer-events-none z-0 glow-orb animate-orb-slow-1"></div>
         <div className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 glow-orb animate-orb-slow-2"></div>
@@ -727,7 +726,6 @@ export default function Home() {
   // Giriş Yapılmışsa Ana Arayüzü Göster
   return (
     <div className="flex min-h-screen bg-[#03000a] text-gray-100 relative overflow-hidden">
-      <div className="absolute inset-0 stars-bg pointer-events-none z-0"></div>
 
       {/* 1. MASAÜSTÜ SIDEBAR (md ve üzeri) */}
       <div className="hidden md:flex relative z-10">

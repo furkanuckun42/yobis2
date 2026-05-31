@@ -9,8 +9,11 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const month = searchParams.get('month') || new Date().toISOString().substring(0, 7)
+    const getTurkeyMonthStr = () => {
+      const d = new Date(Date.now() + 3 * 60 * 60 * 1000)
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+    }
+    const month = searchParams.get('month') || getTurkeyMonthStr()
     const includeArchived = searchParams.get('includeArchived') === 'true'
 
     const where = { month }

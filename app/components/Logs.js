@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList, Search, RefreshCw, Eye, Calendar, User, Info, Activity, Trash2, Loader2, Database, Upload, Download } from 'lucide-react'
 
+// Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
+const getLocalDateString = (date = new Date()) => {
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
+
 export default function Logs({ currentUser, addToast, showConfirm }) {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +41,7 @@ export default function Logs({ currentUser, addToast, showConfirm }) {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `hd-studio-backup-${new Date().toISOString().split('T')[0]}.db`
+      link.download = `hd-studio-backup-${getLocalDateString()}.db`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
