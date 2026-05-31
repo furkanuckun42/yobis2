@@ -1,7 +1,7 @@
 // Prisma schema for HD Studio (SQLite backend)
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

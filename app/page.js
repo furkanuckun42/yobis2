@@ -14,23 +14,38 @@ import WorkLogs from '@/app/components/WorkLogs'
 import ToastContainer from '@/app/components/Toast'
 import { Menu, X, Sparkles, Bell, LogOut, Lock, Loader2, Search, KeyRound, User, ChevronDown, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 
-// Global fetch override to inject session token from localStorage (iOS PWA httpOnly cookie workaround)
-if (typeof window !== 'undefined') {
-  const originalFetch = window.fetch;
-  window.fetch = async function (url, options = {}) {
+// Safe localStorage helper — no code runs at module level, only inside functions
+const safeStorage = {
+  getItem(key) {
+    try { return localStorage.getItem(key) } catch (e) { return null }
+  },
+  setItem(key, value) {
+    try { localStorage.setItem(key, value) } catch (e) {}
+  },
+  removeItem(key) {
+    try { localStorage.removeItem(key) } catch (e) {}
+  }
+}
+
+// installFetchInterceptor — called inside useEffect after hydration
+function installFetchInterceptor() {
+  if (typeof window === 'undefined' || window.__fetchInterceptorInstalled) return
+  window.__fetchInterceptorInstalled = true
+  const originalFetch = window.fetch
+  window.fetch = async function(url, options) {
+    options = options || {}
     try {
-      const token = localStorage.getItem('session_token');
-      if (token && url.toString().startsWith('/api')) {
-        options.headers = {
-          ...options.headers,
-          'Authorization': `Bearer ${token}`
-        };
+      const token = safeStorage.getItem('session_token') || window.__sessionToken
+      if (token) {
+        const urlStr = typeof url === 'string' ? url : (url && url.url) ? url.url : String(url)
+        const isApi = urlStr.startsWith('/api') || urlStr.includes('/api/')
+        if (isApi) {
+          options.headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + token })
+        }
       }
-    } catch (e) {
-      console.error('Fetch interceptor error:', e);
-    }
-    return originalFetch(url, options);
-  };
+    } catch (e) {}
+    return originalFetch.call(window, url, options)
+  }
 }
 import SearchModal from '@/app/components/SearchModal'
 import Logs from '@/app/components/Logs'
@@ -123,6 +138,7 @@ export default function Home() {
   // Giriş Yapma İşlemi
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
     setLoggingIn(true)
     setLoginError('')
     try {
@@ -133,15 +149,19 @@ export default function Home() {
       })
 
       const data = await res.json()
+      
       if (res.ok) {
         setCurrentUser(data.user)
-        localStorage.setItem('currentUser', JSON.stringify(data.user))
-        localStorage.setItem('session_token', data.token)
+        if (typeof window !== 'undefined') {
+          window.__sessionToken = data.token
+        }
+        safeStorage.setItem('currentUser', JSON.stringify(data.user))
+        safeStorage.setItem('session_token', data.token)
         
         const now = Date.now()
         lastActivityRef.current = now
         lastSavedActivityRef.current = now
-        localStorage.setItem('lastActivity', now.toString())
+        safeStorage.setItem('lastActivity', now.toString())
 
         setActiveTab('dashboard')
         fetchNotifications()
@@ -168,9 +188,12 @@ export default function Home() {
       console.error('Çıkış hatası:', err)
     }
     setCurrentUser(null)
-    localStorage.removeItem('currentUser')
-    localStorage.removeItem('lastActivity')
-    localStorage.removeItem('session_token')
+    if (typeof window !== 'undefined') {
+      window.__sessionToken = null
+    }
+    safeStorage.removeItem('currentUser')
+    safeStorage.removeItem('lastActivity')
+    safeStorage.removeItem('session_token')
     setNotifications([])
     setShowNotifications(false)
     setProfileDropdownOpen(false)
@@ -339,15 +362,30 @@ export default function Home() {
   // 1. Session recovery on mount & PWA registration
   useEffect(() => {
     setMounted(true)
+    installFetchInterceptor() // Install AFTER React hydration — safe for iOS Safari
     if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('currentUser')
-      const savedActivity = localStorage.getItem('lastActivity')
+      const savedUser = safeStorage.getItem('currentUser')
+      const savedActivity = safeStorage.getItem('lastActivity')
+      const savedToken = safeStorage.getItem('session_token')
       
-      if (savedUser && savedActivity) {
-        const parsedUser = JSON.parse(savedUser)
-        const parsedActivity = parseInt(savedActivity)
+      if (savedToken) {
+        window.__sessionToken = savedToken
+      }
+      
+        let parsedUser = null
+        let parsedActivity = 0
+        try {
+          parsedUser = savedUser ? JSON.parse(savedUser) : null
+          parsedActivity = savedActivity ? parseInt(savedActivity) : 0
+        } catch (e) {
+          console.error('Failed to parse saved user or activity:', e)
+          safeStorage.removeItem('currentUser')
+          safeStorage.removeItem('lastActivity')
+          safeStorage.removeItem('session_token')
+          window.__sessionToken = null
+        }
         
-        if (Date.now() - parsedActivity <= 7 * 24 * 60 * 60 * 1000) {
+        if (parsedUser && parsedActivity && Date.now() - parsedActivity <= 7 * 24 * 60 * 60 * 1000) {
           setCurrentUser(parsedUser)
           lastActivityRef.current = parsedActivity
           lastSavedActivityRef.current = parsedActivity
@@ -356,10 +394,11 @@ export default function Home() {
             checkAndAlertNewTasks()
           }, 1000)
         } else {
-          localStorage.removeItem('currentUser')
-          localStorage.removeItem('lastActivity')
+          safeStorage.removeItem('currentUser')
+          safeStorage.removeItem('lastActivity')
+          safeStorage.removeItem('session_token')
+          window.__sessionToken = null
         }
-      }
 
       // Service Worker Kaydı (PWA için)
       if ('serviceWorker' in navigator) {
@@ -380,7 +419,7 @@ export default function Home() {
       // Throttling: Only write to localStorage at most once every 15 seconds to avoid UI stuttering/lag
       if (now - lastSavedActivityRef.current > 15000) {
         lastSavedActivityRef.current = now
-        localStorage.setItem('lastActivity', now.toString())
+        safeStorage.setItem('lastActivity', now.toString())
       }
     }
 
@@ -538,7 +577,8 @@ export default function Home() {
             </div>
           </div>
 
-          <form onSubmit={handleLoginSubmit} className="space-y-4 text-left">
+
+          <form onSubmit={handleLoginSubmit} action="" method="post" className="space-y-4 text-left">
             {loginError && (
               <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-semibold">
                 {loginError}
@@ -572,6 +612,7 @@ export default function Home() {
             <button
               type="submit"
               disabled={loggingIn}
+              onClick={handleLoginSubmit}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20 disabled:opacity-50"
             >
               {loggingIn ? (
