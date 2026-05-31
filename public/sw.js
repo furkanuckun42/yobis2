@@ -1,62 +1,59 @@
-const CACHE_NAME = 'yobi-cache-v2.3'
-const urlsToCache = [
-  '/',
-  '/favicon.ico'
-]
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
 
-self.addEventListener('install', event => {
-  // Eski cache'leri hemen temizlemek için claim/skipWaiting
-  self.skipWaiting()
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache)
-      })
-  )
-})
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
-self.addEventListener('activate', event => {
-  // Eski cache versiyonlarını temizle
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Eski cache temizleniyor:', cache)
-            return caches.delete(cache)
-          }
-        })
-      )
-    }).then(() => self.clients.claim())
-  )
-})
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
 
-self.addEventListener('fetch', event => {
-  // Sadece GET istekleri önbelleklenir
-  if (event.request.method !== 'GET') return
-  
-  // API veya Google Config url'lerini önbelleğe alma
-  const url = new URL(event.request.url)
-  if (url.pathname.startsWith('/api')) {
-    return // Doğrudan networke gitsin
+  try {
+    const data = event.data.json();
+    const title = data.title || 'HD Studio';
+    const options = {
+      body: data.body || '',
+      icon: '/logo-login.png',
+      badge: '/logo-login.png',
+      vibrate: [100, 50, 100],
+      data: {
+        url: data.url || '/'
+      }
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+    );
+  } catch (err) {
+    console.error('Service Worker Push Hatası:', err);
   }
+});
 
-  // HTML ve Statik dosyalar için Network-First (Ağ Öncelikli) Strateji
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // İstek başarılıysa cache'i güncelle
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseCopy = response.clone()
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseCopy)
-          })
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Açık pencereleri tara, eğer varsa odaklan ve yönlendir
+      for (const client of clientList) {
+        try {
+          const clientUrl = new URL(client.url);
+          const currentOrigin = new URL(self.location.origin);
+          if (clientUrl.origin === currentOrigin.origin && 'focus' in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        } catch (e) {
+          console.error('Window matching error:', e);
         }
-        return response
-      })
-      .catch(() => {
-        // Ağ yoksa önbellekten döndür
-        return caches.match(event.request)
-      })
-  )
-})
+      }
+      // Açık pencere yoksa yeni aç
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

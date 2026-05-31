@@ -65,6 +65,11 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
 
+  // PWA Web Push Notification States
+  const [pushSupported, setPushSupported] = useState(false)
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false)
+  const [subscribingPush, setSubscribingPush] = useState(false)
+
   // Profile Dropdown State
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const profileDropdownRef = useRef(null)
@@ -272,6 +277,82 @@ export default function Home() {
     }
   }
 
+  // PWA Web Push Abonelik Durumu Kontrolü
+  const checkPushSubscriptionStatus = async () => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushSupported(false)
+      return
+    }
+    setPushSupported(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      setIsPushSubscribed(!!sub)
+    } catch (err) {
+      console.error('Subscription status check failed:', err)
+    }
+  }
+
+  // PWA Web Push Aboneliği Oluşturma (iOS Safari Uyumlu - Kullanıcı Etkileşimiyle)
+  const subscribeToPushNotifications = async () => {
+    if (!pushSupported || subscribingPush) return
+    setSubscribingPush(true)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        addToast('Bildirim izni reddedildi. Lütfen tarayıcı ayarlarından bildirim izinlerini açın.', 'warning')
+        setSubscribingPush(false)
+        return
+      }
+
+      const reg = await navigator.serviceWorker.ready
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidPublicKey) {
+        throw new Error('Sistem açık anahtarı (VAPID) bulunamadı.')
+      }
+
+      const urlBase64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4)
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/')
+        const rawData = window.atob(base64)
+        const outputArray = new Uint8Array(rawData.length)
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i)
+        }
+        return outputArray
+      }
+
+      const subscribeOptions = {
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      }
+
+      const subscription = await reg.pushManager.subscribe(subscribeOptions)
+      
+      const res = await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-requested-with': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ subscription })
+      })
+
+      if (res.ok) {
+        setIsPushSubscribed(true)
+        addToast('Anlık bildirimler başarıyla etkinleştirildi! 🎉', 'success')
+      } else {
+        const data = await res.json()
+        throw new Error(data.error || 'Abonelik kaydedilemedi.')
+      }
+    } catch (err) {
+      console.error('Push subscription failed:', err)
+      addToast(`Abonelik hatası: ${err.message}`, 'error')
+    } finally {
+      setSubscribingPush(false)
+    }
+  }
+
   // Bildirimleri Çekme
   const fetchNotifications = async () => {
     try {
@@ -408,6 +489,13 @@ export default function Home() {
       }
     }
   }, [])
+
+  // 1.1 Kullanıcı değiştiğinde Push Abonelik durumunu kontrol et
+  useEffect(() => {
+    if (currentUser) {
+      checkPushSubscriptionStatus()
+    }
+  }, [currentUser])
 
   // 2. Inactivity tracking & notifications polling
   useEffect(() => {
@@ -757,6 +845,17 @@ export default function Home() {
                       )}
                     </div>
                   </div>
+
+                  {pushSupported && !isPushSubscribed && (
+                    <button
+                      onClick={subscribeToPushNotifications}
+                      disabled={subscribingPush}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-bold transition shadow-lg shadow-violet-600/10 cursor-pointer mb-1"
+                    >
+                      <Bell className="w-3 h-3 animate-bounce" />
+                      <span>{subscribingPush ? 'Etkinleştiriliyor...' : 'Cihaz Bildirimlerini Etkinleştir (iOS/Safari)'}</span>
+                    </button>
+                  )}
 
                   {notifications.length === 0 ? (
                     <div className="text-center py-6 text-xs text-gray-500 italic">
