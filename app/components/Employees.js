@@ -25,7 +25,9 @@ export default function Employees({ currentUser, addToast, showConfirm }) {
     name: '',
     userId: '',
     fullDayRate: '',
-    halfDayRate: ''
+    halfDayRate: '',
+    iban: '',
+    notes: ''
   })
   const [isEditing, setIsEditing] = useState(false)
 
@@ -89,7 +91,9 @@ export default function Employees({ currentUser, addToast, showConfirm }) {
       name: '',
       userId: '',
       fullDayRate: '',
-      halfDayRate: ''
+      halfDayRate: '',
+      iban: '',
+      notes: ''
     })
     setIsEditing(false)
     setSelectedEmployee(null)
@@ -101,7 +105,9 @@ export default function Employees({ currentUser, addToast, showConfirm }) {
       name: emp.name,
       userId: emp.userId || '',
       fullDayRate: emp.fullDayRate.toString(),
-      halfDayRate: emp.halfDayRate.toString()
+      halfDayRate: emp.halfDayRate.toString(),
+      iban: emp.iban || '',
+      notes: emp.notes || ''
     })
     setIsEditing(true)
   }
@@ -236,7 +242,14 @@ export default function Employees({ currentUser, addToast, showConfirm }) {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-violet-500/5 text-xs text-gray-400">
+                      {emp.iban && (
+                        <div className="mt-3 pt-3 border-t border-violet-500/5">
+                          <span className="text-[9px] block uppercase font-bold tracking-wider text-gray-500">IBAN</span>
+                          <span className="font-mono text-xs text-gray-300 break-all">{emp.iban}</span>
+                        </div>
+                      )}
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-violet-500/5 text-xs text-gray-400">
                       <div>
                         <span className="text-[9px] block uppercase font-bold tracking-wider">Tam Gün</span>
                         <span className="font-semibold text-white">
@@ -332,6 +345,30 @@ export default function Employees({ currentUser, addToast, showConfirm }) {
                   className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">IBAN (Banka Hesap No)</label>
+              <input
+                type="text"
+                value={form.iban}
+                onChange={(e) => setForm({ ...form, iban: e.target.value.replace(/\s/g, '') })}
+                placeholder="TR000000000000000000000000"
+                maxLength={34}
+                className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white font-mono focus:outline-none focus:border-violet-500 transition"
+              />
+              <p className="text-[10px] text-gray-500 mt-1">Boşluk olmadan girin, otomatik büyük harfe çevrilir.</p>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Notlar</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Çalışan hakkında genel notlar..."
+                rows={3}
+                className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition resize-none"
+              />
             </div>
 
             <div className="flex gap-3 pt-2">

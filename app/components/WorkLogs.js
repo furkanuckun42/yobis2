@@ -10,7 +10,9 @@ import {
   Save, 
   Lock, 
   X,
-  DollarSign
+  DollarSign,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 // Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
@@ -39,6 +41,45 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
 
   // Selected Filter for Admin
   const [filterEmployeeId, setFilterEmployeeId] = useState('')
+
+  // Ay Filtresi
+  const now = new Date()
+  const [filterMonth, setFilterMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  )
+  const [showAllMonths, setShowAllMonths] = useState(false)
+
+  const prevFilterMonth = () => {
+    setFilterMonth(prev => {
+      const [y, m] = prev.split('-').map(Number)
+      const d = new Date(y, m - 2, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    })
+  }
+
+  const nextFilterMonth = () => {
+    setFilterMonth(prev => {
+      const [y, m] = prev.split('-').map(Number)
+      const d = new Date(y, m, 1)
+      const nowDate = new Date()
+      const maxStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`
+      const newStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (newStr > maxStr) return prev
+      return newStr
+    })
+  }
+
+  const filterMonthLabel = (() => {
+    const [y, m] = filterMonth.split('-').map(Number)
+    const names = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
+    return `${names[m - 1]} ${y}`
+  })()
+
+  const isCurrentFilterMonth = (() => {
+    const nowDate = new Date()
+    const currentStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`
+    return filterMonth === currentStr
+  })()
 
   const fetchLogs = async () => {
     try {
@@ -197,10 +238,17 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
     })
   }
 
-  // Filtrelenmiş Kayıtlar
+  // Filtrelenmiş Kayıtlar (personel + ay filtresi)
   const filteredLogs = logs.filter(log => {
+    // Çalışan filtresi (admin için)
     if (isAdmin && filterEmployeeId !== '') {
-      return log.employeeId === filterEmployeeId
+      if (log.employeeId !== filterEmployeeId) return false
+    }
+    // Ay filtresi (tüm ay seçili değilse)
+    if (!showAllMonths) {
+      const logDate = new Date(log.date)
+      const logMonthStr = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}`
+      if (logMonthStr !== filterMonth) return false
     }
     return true
   })
@@ -464,7 +512,59 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-bold text-lg text-white">Çalışma Geçmişi</h3>
-            {isAdmin && selectedLogs.length > 0 && (
+            <div className="flex items-center gap-2">
+              {/* Ay Navigasyonu */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-950/30 border border-violet-500/15">
+                <button
+                  onClick={prevFilterMonth}
+                  className="p-1 hover:bg-violet-950/40 rounded-lg text-violet-400 transition cursor-pointer"
+                  title="Önceki Ay"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-bold text-violet-300 min-w-[100px] text-center">{filterMonthLabel}</span>
+                <button
+                  onClick={nextFilterMonth}
+                  disabled={isCurrentFilterMonth}
+                  className="p-1 hover:bg-violet-950/40 rounded-lg text-violet-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Sonraki Ay"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Tüm aylar toggle */}
+              <button
+                onClick={() => setShowAllMonths(v => !v)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  showAllMonths
+                    ? 'bg-violet-600 border-violet-500 text-white'
+                    : 'bg-violet-950/20 border-violet-500/20 text-gray-400 hover:text-white'
+                }`}
+              >
+                Tüm Aylar
+              </button>
+            </div>
+          </div>
+
+          {/* Seçilen Ay Özet Kutusu */}
+          {!showAllMonths && (
+            <div className="flex gap-3 text-xs">
+              <span className="px-3 py-1.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-violet-300">
+                <span className="text-gray-500 mr-1">Kayıt:</span>
+                <span className="font-bold">{filteredLogs.length}</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-rose-950/20 border border-rose-500/10 text-rose-300">
+                <span className="text-gray-500 mr-1">Bekleyen:</span>
+                <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENMEDI').reduce((s,l) => s + l.amount, 0))}</span>
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/10 text-emerald-300">
+                <span className="text-gray-500 mr-1">Ödenen:</span>
+                <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENDI').reduce((s,l) => s + l.amount, 0))}</span>
+              </span>
+            </div>
+          )}
+
+          {isAdmin && selectedLogs.length > 0 && (
               <div className="flex items-center gap-2 p-2 rounded-xl bg-violet-600/10 border border-violet-500/20 animate-fade-in">
                 <span className="text-xs font-semibold text-violet-300">
                   {selectedLogs.length} adet seçildi
@@ -493,7 +593,7 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="text-center py-24 text-gray-500 text-sm rounded-2xl glass">
-              Kayıtlı çalışma mesaisi bulunamadı.
+              {showAllMonths ? 'Kayıtlı çalışma mesaisi bulunamadı.' : `${filterMonthLabel} ayına ait çalışma kaydı bulunamadı.`}
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-violet-500/10 glass max-h-[60vh] overflow-y-auto pr-1">

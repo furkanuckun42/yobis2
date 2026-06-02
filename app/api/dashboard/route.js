@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request) {
   try {
     // 1. Aktif Proje Sayısı (Teslim Edildi aşamasında olmayanlar ve Arşivlenmemiş olanlar)
     const activeProjectsCount = await prisma.project.count({
@@ -24,13 +24,17 @@ export async function GET() {
       }
     })
 
-    // 3. Aylık Tahmini Gelir (Bu ayın aktif/arşivlenmemiş Aylık Müşteri Kartlarının gelir toplamı - Türkiye Saati Uyumlu)
+    // 3. Aylık Tahmini Gelir (Seçilen veya bu ayın aktif/arşivlenmemiş Aylık Müşteri Kartlarının gelir toplamı - Türkiye Saati Uyumlu)
+    const { searchParams } = new URL(request.url)
+    const selectedMonth = searchParams.get('month')
+
     const currentDate = new Date(Date.now() + 3 * 60 * 60 * 1000)
     const currentMonthStr = `${currentDate.getUTCFullYear()}-${String(currentDate.getUTCMonth() + 1).padStart(2, '0')}`
+    const targetMonth = selectedMonth || currentMonthStr
 
     const activeMonthlyCards = await prisma.monthlyCard.findMany({
       where: {
-        month: currentMonthStr,
+        month: targetMonth,
         status: { not: 'ARCHIVED' }
       },
       include: {
@@ -145,9 +149,11 @@ export async function GET() {
         activeProjectsCount,
         netCashStatus,
         monthlyEstimatedRevenue,
+        monthlyCardCount: activeMonthlyCards.length,
         netCariStatus,
         totalAlacak,
-        totalBorc
+        totalBorc,
+        targetMonth
       },
       upcomingProjects,
       chartData: monthsList

@@ -26,7 +26,7 @@ export async function POST(request) {
     }
 
     const data = await request.json()
-    const { name, userId, fullDayRate, halfDayRate } = data
+    const { name, userId, fullDayRate, halfDayRate, iban, notes } = data
 
     if (!name) {
       return NextResponse.json({ error: 'Çalışan adı zorunludur.' }, { status: 400 })
@@ -41,6 +41,8 @@ export async function POST(request) {
         userId: actualUserId,
         fullDayRate: parseFloat(fullDayRate || 0),
         halfDayRate: parseFloat(halfDayRate || 0),
+        iban: iban && iban.trim() !== '' ? iban.trim().toUpperCase() : null,
+        notes: notes && notes.trim() !== '' ? notes.trim() : null,
       },
       include: {
         user: {
@@ -65,7 +67,7 @@ export async function PUT(request) {
     }
 
     const data = await request.json()
-    const { id, name, userId, fullDayRate, halfDayRate } = data
+    const { id, name, userId, fullDayRate, halfDayRate, iban, notes } = data
 
     if (!id) {
       return NextResponse.json({ error: 'ID parametresi zorunludur.' }, { status: 400 })
@@ -85,6 +87,8 @@ export async function PUT(request) {
         userId: userId !== undefined ? actualUserId : existing.userId,
         fullDayRate: fullDayRate !== undefined ? parseFloat(fullDayRate || 0) : existing.fullDayRate,
         halfDayRate: halfDayRate !== undefined ? parseFloat(halfDayRate || 0) : existing.halfDayRate,
+        iban: iban !== undefined ? (iban && iban.trim() !== '' ? iban.trim().toUpperCase() : null) : existing.iban,
+        notes: notes !== undefined ? (notes && notes.trim() !== '' ? notes.trim() : null) : existing.notes,
       },
       include: {
         user: {

@@ -25,6 +25,11 @@ import {
 
 export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, onAuthError, addToast }) {
   const [data, setData] = useState(null)
+  // Aylık Müşteri Dönem Seçimi
+  const [selectedMetricMonth, setSelectedMetricMonth] = useState(() => {
+    const now = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  })
   const [loading, setLoading] = useState(true)
   
   // Weather State
@@ -111,7 +116,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
       }
 
       const [dashResult, eventsResult, configResult, worklogsResult] = await Promise.allSettled([
-        fetch('/api/dashboard').then(handleFetchRes),
+        fetch(`/api/dashboard?month=${selectedMetricMonth}`).then(handleFetchRes),
         fetch('/api/events').then(handleFetchRes),
         fetch('/api/auth/google/config').then(handleFetchRes),
         fetch('/api/worklogs').then(handleFetchRes)
@@ -180,7 +185,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
 
   useEffect(() => {
     fetchDashboardData()
-  }, [triggerRefresh])
+  }, [triggerRefresh, selectedMetricMonth])
 
   useEffect(() => {
     fetchWeather()
@@ -328,6 +333,39 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     return day === 0 ? 6 : day - 1 // Pazartesi ile başlat
   }
 
+  // Metrik Dönem Navigasyonu
+  const prevMetricMonth = () => {
+    setSelectedMetricMonth(prev => {
+      const [y, m] = prev.split('-').map(Number)
+      const d = new Date(y, m - 2, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    })
+  }
+
+  const nextMetricMonth = () => {
+    setSelectedMetricMonth(prev => {
+      const [y, m] = prev.split('-').map(Number)
+      const d = new Date(y, m, 1)
+      const nowTR = new Date(Date.now() + 3 * 60 * 60 * 1000)
+      const currentStr = `${nowTR.getUTCFullYear()}-${String(nowTR.getUTCMonth() + 1).padStart(2, '0')}`
+      const newStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (newStr > currentStr) return prev // Gelecek aya gitme
+      return newStr
+    })
+  }
+
+  const isCurrentMetricMonth = (() => {
+    const nowTR = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    const currentStr = `${nowTR.getUTCFullYear()}-${String(nowTR.getUTCMonth() + 1).padStart(2, '0')}`
+    return selectedMetricMonth === currentStr
+  })()
+
+  const metricMonthLabel = (() => {
+    const [y, m] = selectedMetricMonth.split('-').map(Number)
+    const names = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
+    return `${names[m - 1]} ${y}`
+  })()
+
   const prevMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
   }
@@ -466,15 +504,17 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
             <div className="text-xs text-emerald-400/80 mt-4 font-semibold">Gelir - Gider dengesi</div>
           </div>
 
-          {/* Metric 2 — Aylık Gelir */}
+          {/* Metric 2 — Aylık Müşteri Beklenen Ödeme */}
           <div 
-            onClick={() => setActiveTab && setActiveTab('monthlyCustomers')}
-            className="p-6 rounded-2xl glass-card relative overflow-hidden group cursor-pointer hover:border-violet-500/30 transition-all"
+            className="p-6 rounded-2xl glass-card relative overflow-hidden group hover:border-violet-500/30 transition-all"
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-violet-600/10 to-transparent rounded-full blur-2xl group-hover:scale-125 transition-all"></div>
             <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Aylık Tahmini Gelir</p>
+              <div
+                onClick={() => setActiveTab && setActiveTab('monthlyCustomers')}
+                className="cursor-pointer flex-1"
+              >
+                <p className="text-sm font-medium text-gray-400">Beklenen Aylık Ödeme</p>
                 <h3 className="text-3xl font-bold mt-2 text-white">
                   {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(metrics.monthlyEstimatedRevenue)}
                 </h3>
@@ -483,7 +523,26 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
-            <div className="text-xs text-violet-400/80 mt-4 font-semibold">Aylık müşteriler toplamı</div>
+            {/* Dönem Seçici */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-violet-500/10">
+              <button
+                onClick={(e) => { e.stopPropagation(); prevMetricMonth() }}
+                className="p-1 rounded-lg hover:bg-violet-950/40 text-violet-400 transition cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold text-violet-400">{metricMonthLabel}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextMetricMonth() }}
+                disabled={isCurrentMetricMonth}
+                className="p-1 rounded-lg hover:bg-violet-950/40 text-violet-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-[10px] text-gray-500 mt-1">
+              {metrics.monthlyCardCount ?? '-'} müşteri kartı
+            </div>
           </div>
 
           {/* Metric 3 — Toplam Cari Borç */}
