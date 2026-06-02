@@ -585,7 +585,6 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
                 </button>
               </div>
             )}
-          </div>
 
           {loading ? (
             <div className="py-24 flex justify-center items-center rounded-2xl glass">
