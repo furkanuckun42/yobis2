@@ -64,20 +64,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     })
   }, [events])
 
-  // Seçilen güne ait etkinlikleri filtrele
-  const selectedDayEvents = useMemo(() => {
-    if (!selectedDay) return []
-    const sDay = selectedDay.getDate()
-    const sMonth = selectedDay.getMonth()
-    const sYear = selectedDay.getFullYear()
-    return processedEvents.filter(e => {
-      if (activeCalTab === 'google' && e.type !== 'google') return false
-      if (activeCalTab === 'hdstudio' && e.type === 'google') return false
-      return e.dayVal === sDay && 
-             e.monthVal === sMonth && 
-             e.yearVal === sYear
-    })
-  }, [processedEvents, selectedDay, activeCalTab])
+
 
   // Yaklaşan Google etkinliklerini filtrele (bugün veya gelecekte olanlar, tarihe göre sıralı)
   const upcomingGoogleEvents = useMemo(() => {
