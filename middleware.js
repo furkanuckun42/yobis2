@@ -4,8 +4,8 @@ import { decrypt } from '@/lib/session'
 export async function middleware(request) {
   const { pathname } = request.nextUrl
 
-  // Sadece API rotalarını koru (login hariç)
-  if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth/login')) {
+  // Sadece API rotalarını koru (login ve cron hariç)
+  if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth/login') && !pathname.startsWith('/api/cron')) {
     let sessionToken = request.cookies.get('session_token')?.value
 
     // Fallback: iOS PWA / HTTP cookie engeli durumunda Authorization headerını kontrol et
