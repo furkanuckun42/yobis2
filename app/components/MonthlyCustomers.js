@@ -480,13 +480,76 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
             </>
           )}
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Aylık Kart Oluştur</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setIsModalOpen(!isModalOpen)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Aylık Kart Oluştur</span>
+            </button>
+
+            {isModalOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 p-5 rounded-2xl glass border border-violet-500/20 shadow-2xl space-y-4 animate-scale-in z-50 text-left">
+                <div className="flex justify-between items-center border-b border-violet-500/10 pb-2">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-violet-400" />
+                    Aylık Kart Oluştur
+                  </h3>
+                  <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateCard} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1 font-medium">Müşteri Seçin</label>
+                    <select
+                      required
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                      className="w-full text-xs px-3 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition"
+                    >
+                      <option value="" className="bg-[#05020c] text-white">Seçiniz...</option>
+                      {customers.map(c => (
+                        <option key={c.id} value={c.id} className="bg-[#05020c] text-white">
+                          {c.name} ({new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(c.monthlyIncome)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-400 block mb-1 font-medium">Dönem / Ay</label>
+                    <input
+                      type="month"
+                      disabled
+                      value={selectedMonth}
+                      className="w-full text-xs px-3 py-2.5 rounded-xl bg-violet-950/40 border border-violet-500/5 text-gray-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-violet-500/10">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-3 py-1.5 border border-violet-500/10 text-gray-300 hover:text-white rounded-lg text-[10px] font-semibold cursor-pointer"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={creatingCard}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-semibold rounded-lg transition cursor-pointer disabled:opacity-50"
+                    >
+                      {creatingCard && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Oluştur
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -568,69 +631,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
         </div>
       )}
 
-      {/* Modal for Creating New Card */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md p-6 rounded-2xl glass border border-violet-500/20 shadow-2xl space-y-4 animate-scale-in">
-            <div className="flex justify-between items-center border-b border-violet-500/10 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-violet-400" />
-                Aylık Müşteri Kartı Oluştur
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleCreateCard} className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5 font-medium">Müşteri Seçin</label>
-                <select
-                  required
-                  value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  className="w-full text-sm px-3.5 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition"
-                >
-                  <option value="" className="bg-[#05020c] text-white">Seçiniz...</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id} className="bg-[#05020c] text-white">
-                      {c.name} (Sabit Gelir: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(c.monthlyIncome)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5 font-medium">Dönem / Ay</label>
-                <input
-                  type="month"
-                  disabled
-                  value={selectedMonth}
-                  className="w-full text-sm px-3.5 py-2.5 rounded-xl bg-violet-950/40 border border-violet-500/5 text-gray-400 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-violet-500/10">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-violet-500/10 text-gray-300 hover:text-white rounded-xl text-xs font-semibold cursor-pointer"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingCard}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50"
-                >
-                  {creatingCard && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Oluştur
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 

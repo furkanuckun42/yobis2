@@ -37,14 +37,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
   const [weatherLoading, setWeatherLoading] = useState(true)
   const [weatherError, setWeatherError] = useState(false)
 
-  // Calendar State
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDay, setSelectedDay] = useState(new Date()) // Seçilen gün
-  const [isDayModalOpen, setIsDayModalOpen] = useState(false) // Gün detay modalı açık mı?
-  const [syncing, setSyncing] = useState(false)
-  const [showConfig, setShowConfig] = useState(false)
-  const [isLocalhost, setIsLocalhost] = useState(true)
-  const [activeCalTab, setActiveCalTab] = useState('google') // 'google' veya 'hdstudio'
+  // Dashboard Upcoming Tab State
   const [activeUpcomingTab, setActiveUpcomingTab] = useState('hdstudio') // 'hdstudio' veya 'google'
   const [gcalConfig, setGcalConfig] = useState({
     clientId: '',
@@ -94,6 +87,20 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
       .filter(e => e.type === 'google' && e.parsedDate >= todayStart)
       .sort((a, b) => a.parsedDate - b.parsedDate)
       .slice(0, 10)
+  }, [processedEvents])
+
+  // Bugünün Gündemi etkinlikleri (Çalışmalar ve Görevler)
+  const todayEvents = useMemo(() => {
+    const today = new Date()
+    const tDay = today.getDate()
+    const tMonth = today.getMonth()
+    const tYear = today.getFullYear()
+    return processedEvents.filter(e => {
+      // Sadece proje, görev veya toplantıları listele (Google etkinliklerini de gösterelim)
+      return e.dayVal === tDay && 
+             e.monthVal === tMonth && 
+             e.yearVal === tYear
+    })
   }, [processedEvents])
 
   // Fetch Dashboard Data & Events & Config
@@ -192,98 +199,10 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
   }, [])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname
-      setIsLocalhost(hostname === 'localhost' || hostname === '127.0.0.1')
-    }
-  }, [])
-
-  useEffect(() => {
     if (currentUser && currentUser.role !== 'admin') {
-      setActiveCalTab('hdstudio')
       setActiveUpcomingTab('hdstudio')
     }
   }, [currentUser])
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('gcal') === 'success') {
-      addToast('Google hesabı yetkilendirmesi başarıyla tamamlandı! Artık takviminizi senkronize edebilirsiniz.', 'success')
-      window.history.replaceState({}, document.title, window.location.pathname)
-      fetchDashboardData()
-    } else if (params.get('gcal') === 'error') {
-      const details = params.get('details') || params.get('msg') || ''
-      addToast('Google yetkilendirme hatası: ' + decodeURIComponent(details), 'error')
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-  }, [])
-
-  // Google API Yapılandırmasını Kaydet
-  const handleSaveConfig = async (e) => {
-    e.preventDefault()
-    if (!gcalConfig.clientId || !gcalConfig.clientSecret) {
-      addToast('Lütfen hem Client ID hem de Client Secret alanlarını doldurun!', 'warning')
-      return
-    }
-
-    try {
-      const res = await fetch('/api/auth/google/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: gcalConfig.clientId,
-          clientSecret: gcalConfig.clientSecret
-        })
-      })
-
-      if (res.ok) {
-        addToast('Google API ayarları kaydedildi! Şimdi hesabınızı yetkilendirebilirsiniz.', 'success')
-        fetchDashboardData()
-      } else {
-        const err = await res.json()
-        addToast(err.error || 'Ayarlar kaydedilemedi.', 'error')
-      }
-    } catch (err) {
-      console.error(err)
-      addToast('Ayarlar kaydedilirken bağlantı hatası oluştu.', 'error')
-    }
-  }
-
-  // Google OAuth Onay Yönlendirmesini Başlat
-  const handleAuthorizeGoogle = async () => {
-    try {
-      const res = await fetch('/api/auth/google/auth-url')
-      const json = await res.json()
-      if (res.ok && json.url) {
-        window.location.href = json.url // Google yetkilendirme sayfasına yönlendir
-      } else {
-        addToast(json.error || 'Google yetkilendirme bağlantısı alınamadı.', 'error')
-      }
-    } catch (err) {
-      console.error(err)
-      addToast('Bağlantı hatası oluştu.', 'error')
-    }
-  }
-
-  // Gerçek Google Calendar Senkronizasyon İsteği
-  const handleSyncCalendar = async () => {
-    setSyncing(true)
-    try {
-      const res = await fetch('/api/auth/google/sync', { method: 'POST' })
-      const json = await res.json()
-      if (res.ok) {
-        addToast(`Google Takvim başarıyla senkronize edildi! ${json.count} etkinlik güncellendi.`, 'success')
-        fetchDashboardData()
-      } else {
-        addToast(json.error || 'Senkronizasyon başarısız oldu. Lütfen hesabı yeniden yetkilendirin.', 'error')
-      }
-    } catch (err) {
-      console.error(err)
-      addToast('Google Takvim senkronizasyonunda ağ hatası oluştu.', 'error')
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   // Weather Helpers
   const getWeatherIcon = (code) => {
@@ -318,20 +237,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     return currentUser.displayName || currentUser.username
   }
 
-  // Calendar Helpers
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    return new Date(year, month + 1, 0).getDate()
-  }
 
-  const getFirstDayOfMonth = (date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    // 0: Pazar, 1: Pazartesi
-    let day = new Date(year, month, 1).getDay()
-    return day === 0 ? 6 : day - 1 // Pazartesi ile başlat
-  }
 
   // Metrik Dönem Navigasyonu
   const prevMetricMonth = () => {
@@ -366,89 +272,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     return `${names[m - 1]} ${y}`
   })()
 
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
-  }
 
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
-  }
-
-  const monthNames = [
-    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
-    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
-  ]
-
-  const daysOfWeek = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
-
-  const memoizedCalendarDays = useMemo(() => {
-    const daysCount = getDaysInMonth(currentDate)
-    const firstDay = getFirstDayOfMonth(currentDate)
-    const days = []
-    const today = new Date()
-
-    // Boş günler
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-10"></div>)
-    }
-
-    // Ayın günleri
-    for (let day = 1; day <= daysCount; day++) {
-      const thisDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-      const isToday = 
-        day === today.getDate() && 
-        currentDate.getMonth() === today.getMonth() && 
-        currentDate.getFullYear() === today.getFullYear()
-
-      const isSelected = 
-        selectedDay &&
-        day === selectedDay.getDate() && 
-        currentDate.getMonth() === selectedDay.getMonth() && 
-        currentDate.getFullYear() === selectedDay.getFullYear()
-
-      // Bu güne ait etkinlikleri filtrele
-      const dayEvents = processedEvents.filter(e => {
-        if (activeCalTab === 'google' && e.type !== 'google') return false
-        if (activeCalTab === 'hdstudio' && e.type === 'google') return false
-
-        return e.dayVal === day && 
-               e.monthVal === currentDate.getMonth() && 
-               e.yearVal === currentDate.getFullYear()
-      })
-
-      days.push(
-        <button 
-          key={`day-${day}`} 
-          onClick={() => {
-            setSelectedDay(thisDate)
-            setIsDayModalOpen(true)
-          }}
-          className={`h-10 flex flex-col items-center justify-center text-xs font-semibold rounded-lg transition-all relative ${
-            isSelected 
-              ? 'bg-violet-600 text-white glow-purple' 
-              : isToday 
-                ? 'border border-violet-500/40 text-violet-400 bg-violet-950/10' 
-                : 'text-gray-300 hover:bg-violet-950/20'
-          }`}
-        >
-          <span>{day}</span>
-          {dayEvents.length > 0 && (
-            <div className="flex gap-0.5 mt-0.5 justify-center">
-              {dayEvents.slice(0, 3).map((ev, index) => {
-                let dotColor = 'bg-violet-400'
-                if (ev.type === 'equipment') dotColor = 'bg-amber-400'
-                if (ev.type === 'project') dotColor = 'bg-emerald-400'
-                if (ev.type === 'meeting') dotColor = 'bg-sky-400'
-                return <span key={index} className={`w-1 h-1 rounded-full ${dotColor}`}></span>
-              })}
-            </div>
-          )}
-        </button>
-      )
-    }
-
-    return days
-  }, [currentDate, selectedDay, activeCalTab, processedEvents])
 
   if (loading) {
     return (
@@ -687,201 +511,73 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
           </div>
         </div>
 
-        {/* Dynamic Calendar with Google Sync */}
-        <div className="p-6 rounded-2xl glass-card md:col-span-2 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 pb-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-violet-400" />
-                <h4 className="font-bold text-base text-white">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                </h4>
-              </div>
-              
-              {/* Takvim Değiştirme Sekmeleri */}
-              {currentUser?.role === 'admin' && (
-                <div className="flex bg-violet-950/40 p-0.5 rounded-lg border border-violet-500/10">
-                  <button
-                    type="button"
-                    onClick={() => setActiveCalTab('google')}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition cursor-pointer ${
-                      activeCalTab === 'google'
-                        ? 'bg-violet-600 text-white shadow-sm glow-purple'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Google
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveCalTab('hdstudio')}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition cursor-pointer ${
-                      activeCalTab === 'hdstudio'
-                        ? 'bg-violet-600 text-white shadow-sm glow-purple'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    HD Studio
-                  </button>
-                </div>
-              )}
+        {/* Bugünün Gündemi */}
+        <div className="p-6 rounded-2xl glass-card md:col-span-2 space-y-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 pb-3 border-b border-violet-500/10">
+              <Clock className="w-5 h-5 text-violet-400" />
+              <h4 className="font-bold text-base text-white">Bugünün Gündemi</h4>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button onClick={prevMonth} className="p-1 hover:bg-violet-950/40 rounded-lg text-gray-400 hover:text-white transition">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button onClick={nextMonth} className="p-1 hover:bg-violet-950/40 rounded-lg text-gray-400 hover:text-white transition">
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              {currentUser?.role === 'admin' && (
-                <>
-                  <button 
-                    onClick={() => setShowConfig(!showConfig)} 
-                    className="p-1 hover:bg-violet-950/40 rounded-lg text-gray-400 hover:text-white transition"
-                    title="Google Sync Ayarları"
-                  >
-                    <Settings2 className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={handleSyncCalendar} 
-                    disabled={syncing}
-                    className="ml-2 flex items-center gap-1 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-                    <span>Sync</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Sync Config panel */}
-          {showConfig && (
-            <form onSubmit={handleSaveConfig} className="p-4 bg-violet-950/20 border border-violet-500/20 rounded-xl space-y-3 text-left">
-              <h5 className="text-xs font-bold text-violet-300">Google Calendar API Entegrasyonu</h5>
-              {!isLocalhost && !gcalConfig.hasTokens && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-[11px] font-semibold leading-relaxed">
-                  ⚠️ Google Takvim yetkilendirmesi güvenlik kuralları gereği sadece sunucu bilgisayarı (
-                  <a href="http://localhost:3000" className="underline hover:text-amber-300">
-                    http://localhost:3000
-                  </a>
-                  ) üzerinden yapılabilir. Lütfen bu işlemi stüdyonun çalıştığı ana bilgisayardan tamamlayın. Yetkilendirme bittiğinde mobil ve diğer cihazlarda da senkronizasyon çalışacaktır.
+            <div className="space-y-2 mt-4 max-h-[220px] overflow-y-auto pr-1">
+              {todayEvents.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 text-sm">
+                  Bugün için planlanmış bir çalışma teslimatı veya görev bulunmuyor.
                 </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] text-gray-400 block mb-1">Google Client ID</label>
-                  <input 
-                    type="password" 
-                    value={gcalConfig.clientId}
-                    onChange={(e) => setGcalConfig({ ...gcalConfig, clientId: e.target.value })}
-                    placeholder="OAuth Client ID..." 
-                    className="w-full text-xs px-2.5 py-1.5 rounded bg-violet-950/40 border border-violet-500/20 text-white focus:outline-none focus:border-violet-500" 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-400 block mb-1">Google Client Secret</label>
-                  <input 
-                    type="password" 
-                    value={gcalConfig.clientSecret}
-                    onChange={(e) => setGcalConfig({ ...gcalConfig, clientSecret: e.target.value })}
-                    placeholder="OAuth Client Secret..." 
-                    className="w-full text-xs px-2.5 py-1.5 rounded bg-violet-950/40 border border-violet-500/20 text-white focus:outline-none focus:border-violet-500" 
-                  />
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <p className="text-[10px] text-gray-500 max-w-sm">
-                  Kimlik bilgileriniz yerel SQLite veritabanında güvenle saklanır.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
-                  >
-                    Bilgileri Kaydet
-                  </button>
-                  {gcalConfig.exists && (
-                    <button
-                      type="button"
-                      onClick={handleAuthorizeGoogle}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer ${
-                        gcalConfig.hasTokens
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                          : 'bg-amber-600 hover:bg-amber-500 text-white'
-                      }`}
-                    >
-                      {gcalConfig.hasTokens ? 'Hesap Yetkilendirildi ✓' : 'Google Hesabını Yetkilendir'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </form>
-          )}
+              ) : (
+                <div className="space-y-2">
+                  {todayEvents.map((ev) => {
+                    let badgeStyles = 'border-violet-500/10 text-violet-400 bg-violet-950/10'
+                    let label = 'Etkinlik'
+                    if (ev.type === 'project') {
+                      badgeStyles = 'border-emerald-500/10 text-emerald-400 bg-emerald-950/10'
+                      label = 'Teslimat'
+                    }
+                    if (ev.type === 'task') {
+                      badgeStyles = 'border-fuchsia-500/10 text-fuchsia-400 bg-fuchsia-950/10'
+                      label = 'Görev'
+                    }
+                    if (ev.type === 'meeting') {
+                      badgeStyles = 'border-sky-500/10 text-sky-400 bg-sky-950/10'
+                      label = 'Toplantı'
+                    }
+                    if (ev.type === 'equipment') {
+                      badgeStyles = 'border-amber-500/10 text-amber-400 bg-amber-950/10'
+                      label = 'Envanter'
+                    }
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center">
-            {daysOfWeek.map((day, idx) => (
-              <div key={idx} className="text-xs font-bold text-gray-500 py-1">{day}</div>
-            ))}
-            {memoizedCalendarDays}
-          </div>
-
-          {/* Günlük Detay Modalı (Takvime Tıklayınca Açılır) */}
-          {isDayModalOpen && selectedDay && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-              <div className="w-full max-w-lg rounded-2xl glass-card border border-violet-500/20 shadow-2xl p-6 relative animate-scale-in text-left space-y-4">
-                <button
-                  onClick={() => setIsDayModalOpen(false)}
-                  className="absolute top-4 right-4 p-2 rounded-xl bg-violet-950/40 border border-violet-500/10 text-gray-400 hover:text-white transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
-                <div className="flex items-center gap-2 pb-2 border-b border-violet-500/10">
-                  <CalendarIcon className="w-5 h-5 text-violet-400" />
-                  <h3 className="font-bold text-lg text-white">
-                    {selectedDay.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })}
-                  </h3>
-                </div>
-
-                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
-                  {selectedDayEvents.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500 text-sm">
-                      Bu tarihte planlanmış bir etkinlik, görev veya teslimat bulunmuyor.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedDayEvents.map((ev) => {
-                        let badgeStyles = 'border-violet-500/10 text-violet-400 bg-violet-950/10'
-                        if (ev.type === 'equipment') badgeStyles = 'border-amber-500/10 text-amber-400 bg-amber-950/10'
-                        if (ev.type === 'project') badgeStyles = 'border-emerald-500/10 text-emerald-400 bg-emerald-950/10'
-                        if (ev.type === 'meeting') badgeStyles = 'border-sky-500/10 text-sky-400 bg-sky-950/10'
-                        if (ev.type === 'task') badgeStyles = 'border-fuchsia-500/10 text-fuchsia-400 bg-fuchsia-950/10'
-                        
-                        return (
-                          <div key={ev.id} className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition-all ${badgeStyles}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full bg-current"></div>
-                              <div>
-                                <span className="font-semibold text-white block text-sm">{ev.title}</span>
-                                <span className="text-[10px] text-gray-400 block mt-0.5 uppercase tracking-wide">
-                                  Tür: {ev.type === 'project' ? 'Proje Teslimatı' : ev.type === 'task' ? 'Atanmış Görev' : 'Takvim Etkinliği'}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-85 whitespace-nowrap bg-black/30 px-2 py-1 rounded">{ev.time || 'Tüm Gün'}</span>
+                    return (
+                      <div key={ev.id} className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${badgeStyles}`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <div>
+                            <span className="font-bold text-white block text-sm leading-tight">{ev.title}</span>
+                            <span className="text-[10px] text-gray-400 block mt-0.5 uppercase tracking-wide">
+                              Tür: {label}
+                            </span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                        </div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider opacity-85 whitespace-nowrap bg-black/30 px-2 py-0.5 rounded">
+                          {ev.time || 'Tüm Gün'}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="pt-2 border-t border-violet-500/5 flex justify-between items-center text-xs">
+            <span className="text-gray-400">Toplam {todayEvents.length} gündem maddesi</span>
+            <button
+              onClick={() => setActiveTab && setActiveTab('calendar')}
+              className="text-violet-400 hover:text-violet-300 font-bold flex items-center gap-0.5 transition cursor-pointer"
+            >
+              <span>Tüm Takvimi Aç</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

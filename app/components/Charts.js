@@ -2,12 +2,27 @@
 
 import { useState } from 'react'
 
-export default function Charts({ data = [], records = [] }) {
+export default function Charts({ data = [], records = [], selectedMonth = 'ALL' }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [activeChartTab, setActiveChartTab] = useState('trend')
 
-  const expenseRecords = records.filter(r => r.type === 'GIDER')
+  const formatMonthYear = (monthStr) => {
+    if (!monthStr || monthStr === 'ALL') return 'Tüm Zamanlar'
+    const [year, month] = monthStr.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+    return date.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+  }
+
+  const filteredRecords = selectedMonth === 'ALL'
+    ? records
+    : records.filter(r => {
+        const d = new Date(r.date)
+        const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        return mStr === selectedMonth
+      })
+
+  const expenseRecords = filteredRecords.filter(r => r.type === 'GIDER')
   const totalExpenses = expenseRecords.reduce((sum, r) => sum + r.amount, 0)
   
   const expenseCategories = {
@@ -16,12 +31,13 @@ export default function Charts({ data = [], records = [] }) {
     diger: expenseRecords.filter(r => r.workLogId == null && r.category === 'KASA' && r.cariId == null).reduce((sum, r) => sum + r.amount, 0)
   }
   
-  const incomeRecords = records.filter(r => r.type === 'GELIR')
+  const incomeRecords = filteredRecords.filter(r => r.type === 'GELIR')
   const totalIncomes = incomeRecords.reduce((sum, r) => sum + r.amount, 0)
   
   const incomeCategories = {
-    customer: incomeRecords.filter(r => r.customerId != null).reduce((sum, r) => sum + r.amount, 0),
-    diger: incomeRecords.filter(r => r.customerId == null).reduce((sum, r) => sum + r.amount, 0)
+    vsk: incomeRecords.filter(r => r.description && r.description.trim().toUpperCase() === 'VSK').reduce((sum, r) => sum + r.amount, 0),
+    customer: incomeRecords.filter(r => r.customerId != null && !(r.description && r.description.trim().toUpperCase() === 'VSK')).reduce((sum, r) => sum + r.amount, 0),
+    diger: incomeRecords.filter(r => r.customerId == null && !(r.description && r.description.trim().toUpperCase() === 'VSK')).reduce((sum, r) => sum + r.amount, 0)
   }
 
   if (!data || data.length === 0) {
@@ -335,7 +351,7 @@ export default function Charts({ data = [], records = [] }) {
         </div>
       ) : activeChartTab === 'expense' ? (
         <div className="py-6 space-y-6 text-left">
-          <h4 className="text-sm font-bold text-gray-300">Gider Kalemleri Analizi (Tüm Zamanlar)</h4>
+          <h4 className="text-sm font-bold text-gray-300">Gider Kalemleri Analizi ({formatMonthYear(selectedMonth)})</h4>
           <div className="space-y-4">
             {/* Personel Giderleri */}
             <div className="space-y-1.5">
@@ -401,7 +417,7 @@ export default function Charts({ data = [], records = [] }) {
         </div>
       ) : (
         <div className="py-6 space-y-6 text-left">
-          <h4 className="text-sm font-bold text-gray-300">Gelir Kaynakları Analizi (Tüm Zamanlar)</h4>
+          <h4 className="text-sm font-bold text-gray-300">Gelir Kaynakları Analizi ({formatMonthYear(selectedMonth)})</h4>
           <div className="space-y-4">
             {/* Müşteri Sabit Gelirleri */}
             <div className="space-y-1.5">
@@ -418,6 +434,25 @@ export default function Charts({ data = [], records = [] }) {
                 <div 
                   className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
                   style={{ width: `${totalIncomes > 0 ? (incomeCategories.customer / totalIncomes) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* VSK Gelirleri */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">VSK Gelirleri</span>
+                <span className="text-white font-bold">
+                  {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(incomeCategories.vsk)}
+                  <span className="text-gray-500 ml-1.5 font-normal">
+                    ({totalIncomes > 0 ? ((incomeCategories.vsk / totalIncomes) * 100).toFixed(1) : 0}%)
+                  </span>
+                </span>
+              </div>
+              <div className="w-full h-3 bg-violet-950/30 border border-violet-500/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-amber-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+                  style={{ width: `${totalIncomes > 0 ? (incomeCategories.vsk / totalIncomes) * 100 : 0}%` }}
                 />
               </div>
             </div>

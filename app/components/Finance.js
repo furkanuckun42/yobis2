@@ -316,6 +316,9 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
   const totalCariGider = cariRecords.filter(r => r.type === 'GIDER').reduce((sum, r) => sum + r.amount, 0)
   const totalCariGelir = cariRecords.filter(r => r.type === 'GELIR').reduce((sum, r) => sum + r.amount, 0)
 
+  // Cari Borç Toplamı: cari yönetimindeki tüm aktif hesapların pozitif currentBalance toplamı
+  const activeCariDebt = caris.reduce((sum, c) => sum + (c.currentBalance > 0 ? Number(c.currentBalance) : 0), 0)
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Title */}
@@ -373,7 +376,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
             <div>
               <span className="text-[10px] text-gray-400 block uppercase font-bold tracking-wider">Cari Borç Toplamı</span>
               <span className="text-xl font-bold text-amber-400 mt-1 block">
-                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totalCariGider - totalCariGelir)}
+                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(activeCariDebt)}
               </span>
             </div>
             <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400">
@@ -671,8 +674,8 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
 
           {isAdmin && isChartOpen && (
             <div className="animate-slide-in-top">
-            <Charts data={getChartData()} records={records} />
-          </div>
+              <Charts data={getChartData()} records={records} selectedMonth={selectedMonth} />
+            </div>
           )}
 
           {loading ? (

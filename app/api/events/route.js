@@ -80,3 +80,55 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
+export async function POST(request) {
+  try {
+    const role = request.headers.get('x-requester-role')
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Bu işlemi sadece yöneticiler yapabilir.' }, { status: 403 })
+    }
+
+    const { title, date, time, type } = await request.json()
+    if (!title || !date) {
+      return NextResponse.json({ error: 'Başlık ve tarih zorunludur.' }, { status: 400 })
+    }
+
+    const newEvent = await prisma.event.create({
+      data: {
+        title,
+        date: new Date(date),
+        time: time || 'Tüm Gün',
+        type: type || 'meeting'
+      }
+    })
+
+    return NextResponse.json(newEvent)
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const role = request.headers.get('x-requester-role')
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Bu işlemi sadece yöneticiler yapabilir.' }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID parametresi zorunludur.' }, { status: 400 })
+    }
+
+    await prisma.event.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+

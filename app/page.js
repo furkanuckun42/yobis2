@@ -50,6 +50,7 @@ function installFetchInterceptor() {
 import SearchModal from '@/app/components/SearchModal'
 import Logs from '@/app/components/Logs'
 import MonthlyCustomers from '@/app/components/MonthlyCustomers'
+import CalendarPanel from '@/app/components/CalendarPanel'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -600,6 +601,8 @@ export default function Home() {
         return <Tasks currentUser={currentUser} addToast={addToast} showConfirm={showConfirm} />
       case 'worklogs':
         return <WorkLogs currentUser={currentUser} addToast={addToast} showConfirm={showConfirm} />
+      case 'calendar':
+        return <CalendarPanel currentUser={currentUser} addToast={addToast} showConfirm={showConfirm} />
       case 'employees':
         return <Employees currentUser={currentUser} addToast={addToast} showConfirm={showConfirm} />
       case 'users':
@@ -621,6 +624,7 @@ export default function Home() {
     finance: 'Finans',
     tasks: 'Görevler',
     worklogs: 'İş Kayıt Defteri',
+    calendar: 'Takvim',
     employees: 'Çalışan Yönetimi',
     users: 'Kullanıcı Yönetimi',
     systemLogs: 'Sistem Günlükleri',
@@ -714,7 +718,7 @@ export default function Home() {
           </form>
           
           <div className="space-y-1">
-            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.3</div>
+            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.4</div>
             <div className="text-[10px] text-gray-500">Varsayılan oturum süresi 30 dakikadır.</div>
           </div>
         </div>

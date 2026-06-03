@@ -15,7 +15,8 @@ import {
   Clock,
   Briefcase,
   Activity,
-  CreditCard
+  CreditCard,
+  Calendar
 } from 'lucide-react'
 
 export default function Sidebar({ activeTab, setActiveTab, onUndoSuccess, currentUser, addToast }) {
@@ -30,6 +31,7 @@ export default function Sidebar({ activeTab, setActiveTab, onUndoSuccess, curren
     { id: 'finance', name: 'Finans', icon: Wallet },
     { id: 'tasks', name: 'Görevler', icon: ClipboardList },
     { id: 'worklogs', name: 'İş Kayıt Defteri', icon: Clock },
+    { id: 'calendar', name: 'Takvim', icon: Calendar },
   ]
 
   if (currentUser?.role === 'admin') {

@@ -52,7 +52,10 @@ async function getUserFullName(request) {
 export async function GET() {
   try {
     const records = await prisma.finance.findMany({
-      orderBy: { date: 'desc' },
+      orderBy: [
+        { date: 'desc' },
+        { createdAt: 'desc' }
+      ],
       include: {
         customer: { select: { id: true, name: true } },
         cari: { select: { id: true, name: true } }
