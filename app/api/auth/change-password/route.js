@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import crypto from 'crypto'
-
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex')
-}
+import { verifyPassword, encryptPassword } from '@/lib/auth'
 
 export async function POST(request) {
   try {
@@ -38,16 +34,16 @@ export async function POST(request) {
     }
 
     // Mevcut şifreyi doğrula
-    const currentHashed = hashPassword(currentPassword)
-    if (user.password !== currentHashed) {
+    const isPasswordCorrect = verifyPassword(currentPassword, user.password)
+    if (!isPasswordCorrect) {
       return NextResponse.json({ error: 'Mevcut şifreniz hatalı.' }, { status: 403 })
     }
 
-    // Yeni şifreyi hashle ve güncelle
-    const newHashed = hashPassword(newPassword)
+    // Yeni şifreyi şifrele ve güncelle
+    const newEncrypted = encryptPassword(newPassword)
     await prisma.user.update({
       where: { id: requesterId },
-      data: { password: newHashed }
+      data: { password: newEncrypted }
     })
 
     return NextResponse.json({ success: true, message: 'Şifreniz başarıyla değiştirildi.' })

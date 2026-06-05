@@ -23,7 +23,7 @@ export default function Sidebar({ activeTab, setActiveTab, onUndoSuccess, curren
   const [undoing, setUndoing] = useState(false)
   const [undoMessage, setUndoMessage] = useState('')
 
-  const menuItems = [
+  let menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'customers', name: 'Müşteriler', icon: Users },
     { id: 'caris', name: 'Cari Yönetimi', icon: Building2 },
@@ -34,7 +34,14 @@ export default function Sidebar({ activeTab, setActiveTab, onUndoSuccess, curren
     { id: 'calendar', name: 'Takvim', icon: Calendar },
   ]
 
-  if (currentUser?.role === 'admin') {
+  if (currentUser?.role === 'freelancer') {
+    menuItems = [
+      { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
+      { id: 'tasks', name: 'Görevler', icon: ClipboardList },
+      { id: 'worklogs', name: 'İş Kayıt Defteri', icon: Clock },
+      { id: 'calendar', name: 'Takvim', icon: Calendar },
+    ]
+  } else if (currentUser?.role === 'admin') {
     menuItems.push({ id: 'monthlyCustomers', name: 'Aylık Müşteriler', icon: CreditCard })
     menuItems.push({ id: 'employees', name: 'Çalışanlar', icon: Briefcase })
     menuItems.push({ id: 'users', name: 'Kullanıcılar', icon: Shield })

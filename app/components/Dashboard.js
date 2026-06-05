@@ -20,7 +20,8 @@ import {
   Clock,
   X,
   Briefcase,
-  Users
+  Users,
+  Check
 } from 'lucide-react'
 
 export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, onAuthError, addToast }) {
@@ -265,6 +266,232 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  if (currentUser?.role === 'freelancer') {
+    const activeTasks = data?.activeTasks || []
+    const metrics = data?.metrics || { activeTasksCount: 0, completedTasksCount: 0 }
+
+    return (
+      <div className="space-y-8 animate-fade-in text-left">
+        {/* Page Title */}
+        <div>
+          <h2 className="text-3xl font-extrabold tracking-tight glow-text text-white">
+            {getGreeting()}, <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">{getDisplayName()}</span> 👋
+          </h2>
+          <p className="text-gray-400 mt-1">
+            Size atanan aktif görevleri buradan görüntüleyip yönetebilirsiniz. İyi çalışmalar!
+          </p>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div 
+            onClick={() => setActiveTab && setActiveTab('tasks')}
+            className="p-6 rounded-2xl glass-card relative overflow-hidden group cursor-pointer hover:border-violet-500/30 transition-all"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-violet-600/10 to-transparent rounded-full blur-2xl group-hover:scale-125 transition-all"></div>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Aktif Görevlerim</p>
+                <h3 className="text-3xl font-bold mt-2 text-white">{metrics.activeTasksCount ?? 0}</h3>
+              </div>
+              <div className="p-3 bg-violet-500/10 rounded-xl text-violet-400 border border-violet-500/20">
+                <Clock className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="text-xs text-violet-400/80 mt-4 font-semibold">Devam eden veya bekleyen görevler</div>
+          </div>
+
+          <div 
+            onClick={() => setActiveTab && setActiveTab('tasks')}
+            className="p-6 rounded-2xl glass-card relative overflow-hidden group cursor-pointer hover:border-emerald-500/30 transition-all"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-600/10 to-transparent rounded-full blur-2xl group-hover:scale-125 transition-all"></div>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Tamamlanan Görevlerim</p>
+                <h3 className="text-3xl font-bold mt-2 text-emerald-400">{metrics.completedTasksCount ?? 0}</h3>
+              </div>
+              <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
+                <Check className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="text-xs text-emerald-400/80 mt-4 font-semibold">Başarıyla tamamlanmış görevler</div>
+          </div>
+
+          <div className="p-6 rounded-2xl glass-card relative overflow-hidden group flex items-center gap-4">
+            <div className="p-4 bg-violet-500/10 rounded-xl text-violet-400 border border-violet-500/10 shrink-0">
+              <CalendarIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-400">Bugünün Tarihi</p>
+              <h3 className="text-xl font-bold mt-1 text-white">
+                {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Grid: Tasks & Weather */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Active Assigned Tasks List */}
+          <div className="p-6 rounded-2xl glass-card lg:col-span-2 space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-violet-500/10">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-violet-400" />
+                  <h4 className="font-bold text-base text-white">Aktif Atanan Görevler</h4>
+                </div>
+                <span className="text-xs px-2.5 py-1 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-full font-semibold">
+                  {activeTasks.length} Görev
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                {activeTasks.length === 0 ? (
+                  <div className="text-center py-16 text-gray-500 text-sm">
+                    Üzerinize atanmış aktif bir görev bulunmuyor.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeTasks.map((task) => {
+                      const daysLeft = task.dueDate 
+                        ? Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+                        : null
+
+                      return (
+                        <div 
+                          key={task.id} 
+                          className="p-4 rounded-xl border border-violet-500/10 bg-violet-950/5 hover:border-violet-500/20 transition-all text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-white">{task.title}</span>
+                              <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-bold border uppercase ${
+                                task.status === 'Devam Ediyor'
+                                  ? 'border-violet-500/20 text-violet-400 bg-violet-950/10'
+                                  : 'border-amber-500/20 text-amber-400 bg-amber-950/10'
+                              }`}>
+                                {task.status}
+                              </span>
+                            </div>
+                            {task.description && (
+                              <p className="text-gray-400 text-[11px] line-clamp-2 leading-relaxed">
+                                {task.description}
+                              </p>
+                            )}
+                            {task.project && (
+                              <div className="text-[10px] text-violet-400 font-medium">
+                                Çalışma: {task.project.name} {task.project.customer ? `(${task.project.customer.name})` : ''}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
+                            {task.dueDate && (
+                              <div className="text-right">
+                                <span className="text-gray-500 block text-[10px] uppercase">Son Tarih</span>
+                                <span className="font-semibold text-gray-300">
+                                  {new Date(task.dueDate).toLocaleDateString('tr-TR')}
+                                </span>
+                                {daysLeft !== null && (
+                                  <span className={`block text-[9px] ${
+                                    daysLeft > 0 
+                                      ? 'text-violet-400' 
+                                      : daysLeft === 0 
+                                        ? 'text-rose-400 font-bold' 
+                                        : 'text-rose-500'
+                                  }`}>
+                                    {daysLeft > 0 
+                                      ? `(${daysLeft} gün kaldı)` 
+                                      : daysLeft === 0 
+                                        ? '(Bugün!)' 
+                                        : `(${Math.abs(daysLeft)} gün gecikti)`}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            <button
+                              onClick={() => setActiveTab && setActiveTab('tasks')}
+                              className="px-3 py-1.5 bg-violet-600/25 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/20 rounded-lg font-bold transition cursor-pointer"
+                            >
+                              Yönet
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-violet-500/5 flex justify-end">
+              <button
+                onClick={() => setActiveTab && setActiveTab('tasks')}
+                className="text-violet-400 hover:text-violet-300 font-bold flex items-center gap-0.5 text-xs transition cursor-pointer"
+              >
+                <span>Tüm Görevleri Gör</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Weather Widget */}
+          <div className="p-6 rounded-2xl glass-card flex flex-col justify-between h-fit lg:h-full">
+            <div className="flex justify-between items-center pb-4 border-b border-violet-500/10">
+              <div>
+                <h4 className="font-bold text-base text-white">Konya</h4>
+                <p className="text-xs text-gray-400">Anlık Hava Durumu</p>
+              </div>
+              <button 
+                onClick={fetchWeather} 
+                className="p-2 hover:bg-violet-950/40 rounded-lg text-violet-400 transition"
+                title="Yenile"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {weatherLoading ? (
+              <div className="py-12 flex justify-center items-center">
+                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : weather ? (
+              <div className="py-6 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-4xl font-black text-white glow-text">
+                    {Math.round(weather.temperature)}°C
+                  </span>
+                  <p className="text-sm text-gray-300 font-semibold">
+                    {getWeatherText(weather.weathercode)}
+                  </p>
+                </div>
+                <div className="p-4 bg-violet-950/20 rounded-2xl border border-violet-500/10">
+                  {getWeatherIcon(weather.weathercode)}
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 flex flex-col items-center justify-center text-center text-xs text-gray-500">
+                <Cloud className="w-8 h-8 text-violet-500/40 mb-1" />
+                <span>İnternet Bağlantısı Yok</span>
+                <span className="text-[10px] text-gray-600 mt-1">Konya (Çevrimdışı Mod)</span>
+              </div>
+            )}
+
+            <div className="text-[10px] text-gray-500 text-right mt-4">
+              {weather?.isOfflineData 
+                ? 'Çevrimdışı (Yedek Veri)' 
+                : weather?.isFallback 
+                  ? 'wttr.in API (Yedek)' 
+                  : 'Open-Meteo API'}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

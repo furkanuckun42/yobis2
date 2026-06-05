@@ -32,9 +32,7 @@ function isRateLimited(ip) {
   return false
 }
 
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex')
-}
+import { verifyPassword, encryptPassword, decryptPassword } from '@/lib/auth'
 
 export async function POST(request) {
   try {
@@ -61,7 +59,7 @@ export async function POST(request) {
       await prisma.user.create({
         data: {
           username: 'admin',
-          password: hashPassword('4366'),
+          password: encryptPassword('4366'),
           role: 'admin',
           displayName: 'Furkan Uçkun'
         }
@@ -77,10 +75,23 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Geçersiz kullanıcı adı veya şifre.' }, { status: 401 })
     }
 
-    // 4. Şifreyi doğrula (SHA-256)
-    const inputHashed = hashPassword(password)
-    if (user.password !== inputHashed) {
+    // 4. Şifreyi doğrula (AES-256 veya legacy SHA-256)
+    const isPasswordCorrect = verifyPassword(password, user.password)
+    if (!isPasswordCorrect) {
       return NextResponse.json({ error: 'Geçersiz kullanıcı adı veya şifre.' }, { status: 401 })
+    }
+
+    // Eski SHA-256 şifreyi otomatik olarak yeni şifreli AES formatına yükselt (Sessiz göç)
+    if (decryptPassword(user.password) === null) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password: encryptPassword(password) }
+        })
+        console.log(`🔒 [Auth] ${user.username} kullanıcısının şifre formatı yeni AES-256 şemasına yükseltildi.`)
+      } catch (err) {
+        console.error('Şifre yükseltme hatası:', err)
+      }
     }
 
     // 5. Oturum verisini oluştur ve şifreli token haline getir

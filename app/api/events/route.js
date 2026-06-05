@@ -6,6 +6,30 @@ export async function GET(request) {
     const requesterId = request.headers.get('x-requester-id')
     const requesterRole = request.headers.get('x-requester-role')
 
+    if (requesterRole === 'freelancer') {
+      const tasks = await prisma.task.findMany({
+        where: {
+          dueDate: { not: null },
+          assignedUserId: requesterId
+        },
+        include: {
+          assignedUser: {
+            select: { displayName: true, username: true }
+          }
+        }
+      })
+
+      const taskEvents = tasks.map(t => ({
+        id: `task-${t.id}`,
+        title: `${t.title} (${t.status})`,
+        date: t.dueDate,
+        time: 'Tüm Gün',
+        type: 'task'
+      }))
+
+      return NextResponse.json(taskEvents)
+    }
+
     // 1. Veritabanındaki Google Calendar üzerinden çekilen etkinlikleri al
     const dbEvents = await prisma.event.findMany({
       orderBy: { date: 'asc' }

@@ -5,7 +5,13 @@ import { sendSystemNotification, notifyAdmins } from '@/lib/notifications'
 // 1. Görevleri Listele
 export async function GET(request) {
   try {
+    const requesterId = request.headers.get('x-requester-id')
+    const requesterRole = request.headers.get('x-requester-role')
+
+    const whereClause = requesterRole === 'freelancer' ? { assignedUserId: requesterId } : {}
+
     const tasks = await prisma.task.findMany({
+      where: whereClause,
       include: {
         assignedUser: {
           select: {
@@ -34,6 +40,11 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const requesterId = request.headers.get('x-requester-id')
+    const requesterRole = request.headers.get('x-requester-role')
+
+    if (requesterRole === 'freelancer') {
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 })
+    }
 
     const { title, description, assignedUserId, dueDate, status } = await request.json()
 
@@ -86,13 +97,18 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Görev bulunamadı.' }, { status: 404 })
     }
 
+    if (requesterRole === 'freelancer' && existingTask.assignedUserId !== requesterId) {
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 })
+    }
+
+    const isFreelancer = requesterRole === 'freelancer'
     const updatedTask = await prisma.task.update({
       where: { id },
       data: {
-        title: title !== undefined ? title : existingTask.title,
-        description: description !== undefined ? description : existingTask.description,
-        assignedUserId: assignedUserId !== undefined ? (assignedUserId || null) : existingTask.assignedUserId,
-        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : existingTask.dueDate,
+        title: (!isFreelancer && title !== undefined) ? title : existingTask.title,
+        description: (!isFreelancer && description !== undefined) ? description : existingTask.description,
+        assignedUserId: (!isFreelancer && assignedUserId !== undefined) ? (assignedUserId || null) : existingTask.assignedUserId,
+        dueDate: (!isFreelancer && dueDate !== undefined) ? (dueDate ? new Date(dueDate) : null) : existingTask.dueDate,
         status: status !== undefined ? status : existingTask.status
       }
     })
@@ -149,6 +165,11 @@ export async function PUT(request) {
 // 4. Görev Sil
 export async function DELETE(request) {
   try {
+    const requesterRole = request.headers.get('x-requester-role')
+    if (requesterRole === 'freelancer') {
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

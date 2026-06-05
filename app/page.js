@@ -579,14 +579,35 @@ export default function Home() {
   }, [currentUser, activeTab])
 
   const handleTabChange = useCallback((tabId) => {
-    setActiveTab(tabId)
+    // Role based tab check
+    let isAllowed = true
+    if (currentUser?.role === 'freelancer') {
+      isAllowed = ['dashboard', 'tasks', 'worklogs', 'calendar'].includes(tabId)
+    } else if (currentUser?.role === 'personel') {
+      isAllowed = ['dashboard', 'customers', 'caris', 'projects', 'finance', 'tasks', 'worklogs', 'calendar'].includes(tabId)
+    }
+    
+    if (isAllowed) {
+      setActiveTab(tabId)
+    } else {
+      setActiveTab('dashboard')
+    }
     setMobileMenuOpen(false)
-  }, [])
+  }, [currentUser])
 
   const activeComponent = useMemo(() => {
     if (!currentUser) return null
     const authErrorCallback = () => handleLogout('session_expired')
-    switch (activeTab) {
+
+    // Safety check for role access
+    let targetTab = activeTab
+    if (currentUser.role === 'freelancer' && !['dashboard', 'tasks', 'worklogs', 'calendar'].includes(targetTab)) {
+      targetTab = 'dashboard'
+    } else if (currentUser.role === 'personel' && ['monthlyCustomers', 'employees', 'users', 'systemLogs'].includes(targetTab)) {
+      targetTab = 'dashboard'
+    }
+
+    switch (targetTab) {
       case 'dashboard':
         return <Dashboard triggerRefresh={refreshTrigger} currentUser={currentUser} setActiveTab={handleTabChange} onAuthError={authErrorCallback} addToast={addToast} />
       case 'customers':
@@ -718,7 +739,7 @@ export default function Home() {
           </form>
           
           <div className="space-y-1">
-            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.4</div>
+            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.5</div>
             <div className="text-[10px] text-gray-500">Varsayılan oturum süresi 30 dakikadır.</div>
           </div>
         </div>

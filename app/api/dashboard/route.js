@@ -3,6 +3,57 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request) {
   try {
+    const requesterRole = request.headers.get('x-requester-role')
+    const requesterId = request.headers.get('x-requester-id')
+
+    if (requesterRole === 'freelancer') {
+      const activeTasksCount = await prisma.task.count({
+        where: {
+          assignedUserId: requesterId,
+          status: { in: ['Bekliyor', 'Devam Ediyor'] }
+        }
+      })
+
+      const completedTasksCount = await prisma.task.count({
+        where: {
+          assignedUserId: requesterId,
+          status: 'Tamamlandı'
+        }
+      })
+
+      const activeTasks = await prisma.task.findMany({
+        where: {
+          assignedUserId: requesterId,
+          status: { in: ['Bekliyor', 'Devam Ediyor'] }
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              customer: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+
+      return NextResponse.json({
+        isFreelancer: true,
+        metrics: {
+          activeTasksCount,
+          completedTasksCount
+        },
+        activeTasks
+      })
+    }
+
     // 1. Aktif Proje Sayısı (Teslim Edildi aşamasında olmayanlar ve Arşivlenmemiş olanlar)
     const activeProjectsCount = await prisma.project.count({
       where: {

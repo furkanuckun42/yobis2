@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logAction } from '@/lib/logger'
+import { sendSystemNotification } from '@/lib/notifications'
 
 export async function POST(request) {
   try {
@@ -58,6 +59,18 @@ export async function POST(request) {
     })
 
     await logAction('INSERT', 'MonthlyCardItem', item.id, item, requesterUsername)
+
+    if (assignedUserId) {
+      try {
+        await sendSystemNotification({
+          userId: assignedUserId,
+          message: `Size aylık müşteri kartında yeni bir görev atandı: [${card.customer.name}] ${title}`,
+          tab: 'tasks'
+        })
+      } catch (err) {
+        console.error('Aylık müşteri yeni görev bildirim hatası:', err)
+      }
+    }
 
     return NextResponse.json(item)
   } catch (error) {
@@ -136,6 +149,19 @@ export async function PUT(request) {
     })
 
     await logAction('UPDATE', 'MonthlyCardItem', itemId, item, requesterUsername)
+
+    const oldAssignedUserId = item.task ? item.task.assignedUserId : null
+    if (assignedUserId !== undefined && assignedUserId !== oldAssignedUserId && assignedUserId) {
+      try {
+        await sendSystemNotification({
+          userId: assignedUserId,
+          message: `Size aylık müşteri kartında yeni bir görev atandı: [${item.card.customer.name}] ${title || item.title}`,
+          tab: 'tasks'
+        })
+      } catch (err) {
+        console.error('Aylık müşteri görev atama değişim bildirim hatası:', err)
+      }
+    }
 
     return NextResponse.json(updatedItem)
   } catch (error) {
