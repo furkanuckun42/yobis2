@@ -44,11 +44,28 @@ export async function GET(request) {
         }
       })
 
+      // Find the employee record associated with this user to calculate unpaid salary (hakediş)
+      const employee = await prisma.employee.findUnique({
+        where: { userId: requesterId }
+      })
+
+      let unpaidSalary = 0
+      if (employee) {
+        const unpaidLogs = await prisma.workLog.findMany({
+          where: {
+            employeeId: employee.id,
+            status: 'ODENMEDI'
+          }
+        })
+        unpaidSalary = unpaidLogs.reduce((sum, log) => sum + log.amount, 0)
+      }
+
       return NextResponse.json({
         isFreelancer: true,
         metrics: {
           activeTasksCount,
-          completedTasksCount
+          completedTasksCount,
+          unpaidSalary
         },
         activeTasks
       })

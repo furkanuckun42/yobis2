@@ -30,8 +30,9 @@ export async function GET(request) {
       return NextResponse.json(taskEvents)
     }
 
-    // 1. Veritabanındaki Google Calendar üzerinden çekilen etkinlikleri al
+    // 1. Veritabanındaki Google Calendar üzerinden çekilen etkinlikleri al (Sadece admin için google etkinlikleri, diğerleri için gizli)
     const dbEvents = await prisma.event.findMany({
+      where: requesterRole === 'admin' ? {} : { type: { not: 'google' } },
       orderBy: { date: 'asc' }
     })
 

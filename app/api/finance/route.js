@@ -111,7 +111,15 @@ export async function POST(request) {
         description,
         customerId: customerId || null,
         cariId: cariId || null,
-        date: date ? new Date(date) : new Date(),
+        date: (() => {
+          if (date) {
+            const [yr, mo, dy] = date.split('-').map(Number)
+            const d = new Date()
+            d.setFullYear(yr, mo - 1, dy)
+            return d
+          }
+          return new Date()
+        })(),
       },
       include: {
         customer: { select: { id: true, name: true } },
@@ -208,7 +216,15 @@ export async function PUT(request) {
     // Basit güncelleme (bakiyeleri karıştırmamak için sadece açıklama ve tarihi güncelletiyoruz)
     const updateData = {
       description: description !== undefined ? description : existing.description,
-      date: date !== undefined ? new Date(date) : existing.date,
+      date: (() => {
+        if (date !== undefined) {
+          const [yr, mo, dy] = date.split('-').map(Number)
+          const d = new Date()
+          d.setFullYear(yr, mo - 1, dy)
+          return d
+        }
+        return existing.date
+      })(),
     }
 
     const record = await prisma.finance.update({

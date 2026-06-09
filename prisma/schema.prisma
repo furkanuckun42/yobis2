@@ -247,6 +247,7 @@ model MonthlyCard {
   customer    Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   month       String            // "YYYY-MM" formatında
   status      String            @default("ACTIVE") // "ACTIVE", "COMPLETED", "ARCHIVED"
+  paidAmount  Float             @default(0)
   items       MonthlyCardItem[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt

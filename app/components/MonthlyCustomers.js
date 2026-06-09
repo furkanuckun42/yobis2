@@ -57,6 +57,12 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
   const [editingItemId, setEditingItemId] = useState(null)
   const [editingItemTitle, setEditingItemTitle] = useState('')
 
+  // Payment states for installment option
+  const [payingCardId, setPayingCardId] = useState(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [shouldForceArchive, setShouldForceArchive] = useState(true)
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+
   // Fetch Data
   const fetchData = async () => {
     setLoading(true)
@@ -184,35 +190,54 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
     })
   }
 
-  // Handle Mark Payment Received
-  const handlePaymentReceived = async (card) => {
-    showConfirm(`${card.customer.name} müşterisinden ${card.month} dönemine ait aylık hizmet bedeli olan ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(card.customer.monthlyIncome)} ödemesinin alındığını onaylıyor musunuz? Bu işlem ödemeyi kasaya gelir olarak işleyecek ve kartı arşivleyecektir.`, async () => {
-      try {
-        const res = await fetch('/api/admin/monthly-cards', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-requester-role': currentUser?.role || '',
-            'x-requester-username': currentUser?.username || ''
-          },
-          body: JSON.stringify({
-            cardId: card.id,
-            status: 'ARCHIVED'
-          })
-        })
+  // Open installment payment panel
+  const openPaymentPanel = (card) => {
+    const remaining = Math.max(0, card.customer.monthlyIncome - card.paidAmount)
+    setPayingCardId(card.id)
+    setPaymentAmount(remaining.toString())
+    setShouldForceArchive(true)
+  }
 
-        const data = await res.json()
-        if (res.ok) {
-          addToast('Ödeme alındı olarak işaretlendi ve kasaya işlendi.', 'success')
-          fetchData()
-        } else {
-          addToast(data.error || 'İşlem başarısız.', 'error')
-        }
-      } catch (err) {
-        console.error(err)
-        addToast('Bağlantı hatası.', 'error')
+  // Handle custom amount payment (Installment / Full Payment)
+  const handleCustomPayment = async (card) => {
+    const amt = parseFloat(paymentAmount)
+    if (isNaN(amt) || amt <= 0) {
+      addToast('Lütfen geçerli bir tutar girin.', 'warning')
+      return
+    }
+
+    setIsSubmittingPayment(true)
+    try {
+      const res = await fetch('/api/admin/monthly-cards', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-requester-role': currentUser?.role || '',
+          'x-requester-username': currentUser?.username || ''
+        },
+        body: JSON.stringify({
+          cardId: card.id,
+          paymentType: 'partial',
+          amount: amt,
+          status: shouldForceArchive ? 'ARCHIVED' : 'ACTIVE'
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        addToast('Ödeme başarıyla alındı ve kasaya işlendi.', 'success')
+        setPayingCardId(null)
+        setPaymentAmount('')
+        fetchData()
+      } else {
+        addToast(data.error || 'İşlem başarısız.', 'error')
       }
-    })
+    } catch (err) {
+      console.error(err)
+      addToast('Bağlantı hatası.', 'error')
+    } finally {
+      setIsSubmittingPayment(false)
+    }
   }
 
   // Add Item to Card
@@ -676,6 +701,22 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
             <TrendingUp className="w-3.5 h-3.5" />
             <span>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(card.customer.monthlyIncome)} / Ay</span>
           </div>
+
+          {/* Ödeme İlerlemesi Progress Bar */}
+          <div className="space-y-1 bg-violet-950/10 border border-violet-500/5 p-2 rounded-xl text-left">
+            <div className="flex justify-between text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+              <span>Ödeme Durumu</span>
+              <span className={card.paidAmount >= card.customer.monthlyIncome ? 'text-emerald-400' : 'text-violet-400'}>
+                {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(card.paidAmount)} / {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(card.customer.monthlyIncome)}
+              </span>
+            </div>
+            <div className="w-full h-1 bg-violet-950/40 rounded-full overflow-hidden border border-violet-500/5">
+              <div 
+                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (card.paidAmount / (card.customer.monthlyIncome || 1)) * 100)}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
 
         {/* Checklist Items */}
@@ -890,23 +931,82 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
               <CheckCircle2 className="w-4 h-4" />
               Ödeme Alındı & Arşivlendi
             </div>
-          ) : isCompleted ? (
-            <div className="space-y-2">
-              <div className="text-center text-xs font-extrabold text-amber-400 bg-amber-500/5 py-1.5 rounded-xl border border-amber-500/10 animate-pulse">
-                ⚠️ Ödeme Bekleniyor
+          ) : payingCardId === card.id ? (
+            <div className="space-y-2.5 p-3 rounded-xl bg-violet-950/20 border border-violet-500/10 text-left animate-slide-in-top">
+              <div className="flex justify-between items-center pb-1 border-b border-violet-500/5">
+                <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">Taksitli Ödeme Al</span>
+                <span className="text-[9px] text-gray-500 font-medium">Kalan: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Math.max(0, card.customer.monthlyIncome - card.paidAmount))}</span>
               </div>
-              <button
-                onClick={() => handlePaymentReceived(card)}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-lg shadow-emerald-600/20"
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                Ödeme Alındı (Kasaya İşle)
-              </button>
+              <div className="space-y-2">
+                <div>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Ödeme Tutarı (₺)"
+                    value={paymentAmount}
+                    onChange={(e) => {
+                      setPaymentAmount(e.target.value)
+                      const val = parseFloat(e.target.value) || 0
+                      const remaining = Math.max(0, card.customer.monthlyIncome - card.paidAmount)
+                      setShouldForceArchive(val >= remaining)
+                    }}
+                    className="w-full text-xs px-3 py-1.5 rounded-lg bg-[#05020c] border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id={`archive-check-${card.id}`}
+                    checked={shouldForceArchive}
+                    onChange={(e) => setShouldForceArchive(e.target.checked)}
+                    className="rounded border-violet-500/20 bg-violet-950/40 text-violet-600 focus:ring-0 focus:ring-offset-0 cursor-pointer w-3.5 h-3.5"
+                  />
+                  <label htmlFor={`archive-check-${card.id}`} className="text-[9px] text-gray-400 font-bold cursor-pointer select-none">
+                    Kartı Arşivle (Ödeme Tamamlandı)
+                  </label>
+                </div>
+                <div className="flex justify-end gap-1.5 pt-1.5 border-t border-violet-500/5">
+                  <button
+                    type="button"
+                    onClick={() => setPayingCardId(null)}
+                    className="px-2 py-1 border border-violet-500/10 text-gray-400 hover:text-white rounded-md text-[9px] font-semibold cursor-pointer"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmittingPayment}
+                    onClick={() => handleCustomPayment(card)}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold rounded-md transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingPayment && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Ödeme Al
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold px-1">
-              <span>Durum: Devam Ediyor</span>
-              <span>{completedCount} / {totalItems} Tamamlandı</span>
+            <div className="space-y-2">
+              {isCompleted ? (
+                <div className="text-center text-[10px] font-extrabold text-amber-400 bg-amber-500/5 py-1 rounded-lg border border-amber-500/10 animate-pulse">
+                  ⚠️ Tüm Görevler Tamamlandı - Ödeme Bekleniyor
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold px-1">
+                  <span>Durum: Devam Ediyor</span>
+                  <span>{completedCount} / {totalItems} Tamamlandı</span>
+                </div>
+              )}
+              
+              <button
+                onClick={() => openPaymentPanel(card)}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600/25 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/20 text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>{card.paidAmount > 0 ? 'Yeni Ödeme/Taksit Al' : 'Ödeme Al (Taksit / Tam)'}</span>
+              </button>
             </div>
           )}
         </div>

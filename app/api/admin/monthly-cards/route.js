@@ -105,7 +105,7 @@ export async function PUT(request) {
     }
 
     const data = await request.json()
-    const { cardId, status } = data
+    const { cardId, status, paymentType, amount } = data
 
     if (!cardId || !status) {
       return NextResponse.json({ error: 'Eksik alanlar var.' }, { status: 400 })
@@ -120,29 +120,63 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Kart bulunamadı.' }, { status: 404 })
     }
 
-    // Ödeme alındı işlemi
-    if (status === 'ARCHIVED' && card.status !== 'ARCHIVED') {
-      const amount = card.customer.monthlyIncome
+    let finalPaidAmount = card.paidAmount
+    let finalStatus = status
+
+    if (paymentType === 'partial') {
+      const parsedAmount = parseFloat(amount) || 0
+      if (parsedAmount <= 0) {
+        return NextResponse.json({ error: 'Tutar sıfırdan büyük olmalıdır.' }, { status: 400 })
+      }
 
       // 1. Kasaya Gelir Ekle
-      if (amount > 0) {
-        const finance = await prisma.finance.create({
-          data: {
-            type: 'GELIR',
-            category: 'KASA',
-            amount: amount,
-            description: `${card.customer.name} - ${card.month} Aylık Hizmet Ödemesi (Aylık Müşteri Kartı)`,
-            customerId: card.customerId,
-            date: new Date()
-          }
-        })
-        await logAction('INSERT', 'Finance', finance.id, finance, requesterUsername)
+      const finance = await prisma.finance.create({
+        data: {
+          type: 'GELIR',
+          category: 'KASA',
+          amount: parsedAmount,
+          description: `${card.customer.name} - ${card.month} Aylık Hizmet Taksit Ödemesi (Aylık Müşteri Kartı)`,
+          customerId: card.customerId,
+          date: new Date()
+        }
+      })
+      await logAction('INSERT', 'Finance', finance.id, finance, requesterUsername)
+
+      finalPaidAmount = card.paidAmount + parsedAmount
+      if (finalPaidAmount >= card.customer.monthlyIncome) {
+        finalStatus = 'ARCHIVED'
+      } else {
+        finalStatus = 'ACTIVE' // Taksit devam ederken kart aktif kalmaya devam etmeli
+      }
+    } else {
+      // Ödeme alındı işlemi (Tam Ödeme)
+      if (status === 'ARCHIVED' && card.status !== 'ARCHIVED') {
+        const remainingAmount = Math.max(0, card.customer.monthlyIncome - card.paidAmount)
+
+        // 1. Kasaya Gelir Ekle
+        if (remainingAmount > 0) {
+          const finance = await prisma.finance.create({
+            data: {
+              type: 'GELIR',
+              category: 'KASA',
+              amount: remainingAmount,
+              description: `${card.customer.name} - ${card.month} Aylık Hizmet Ödemesi (Aylık Müşteri Kartı)`,
+              customerId: card.customerId,
+              date: new Date()
+            }
+          })
+          await logAction('INSERT', 'Finance', finance.id, finance, requesterUsername)
+        }
+        finalPaidAmount = card.customer.monthlyIncome
       }
     }
 
     const updatedCard = await prisma.monthlyCard.update({
       where: { id: cardId },
-      data: { status },
+      data: { 
+        status: finalStatus,
+        paidAmount: finalPaidAmount
+      },
       include: { customer: true }
     })
 

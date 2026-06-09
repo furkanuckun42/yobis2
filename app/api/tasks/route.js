@@ -142,11 +142,12 @@ export async function PUT(request) {
         try {
           const updater = await prisma.user.findUnique({ where: { id: requesterId } })
           const updaterName = updater?.displayName || updater?.username || 'Personel'
+          const prefix = requesterRole === 'freelancer' ? '[Freelancer] ' : ''
           const admins = await prisma.user.findMany({ where: { role: 'admin' } })
           for (const admin of admins) {
             sendSystemNotification({
               userId: admin.id,
-              message: `${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
+              message: `${prefix}${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
               tab: 'tasks'
             })
           }

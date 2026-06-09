@@ -322,16 +322,23 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
             <div className="text-xs text-emerald-400/80 mt-4 font-semibold">Başarıyla tamamlanmış görevler</div>
           </div>
 
-          <div className="p-6 rounded-2xl glass-card relative overflow-hidden group flex items-center gap-4">
-            <div className="p-4 bg-violet-500/10 rounded-xl text-violet-400 border border-violet-500/10 shrink-0">
-              <CalendarIcon className="w-6 h-6" />
+          <div 
+            onClick={() => setActiveTab && setActiveTab('worklogs')}
+            className="p-6 rounded-2xl glass-card relative overflow-hidden group cursor-pointer hover:border-amber-500/30 transition-all"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-600/10 to-transparent rounded-full blur-2xl group-hover:scale-125 transition-all"></div>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Aktif Aylık Alacaklarım</p>
+                <h3 className="text-3xl font-bold mt-2 text-amber-400">
+                  {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(metrics.unpaidSalary ?? 0)}
+                </h3>
+              </div>
+              <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-500/20">
+                <Wallet className="w-5 h-5" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-400">Bugünün Tarihi</p>
-              <h3 className="text-xl font-bold mt-1 text-white">
-                {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </h3>
-            </div>
+            <div className="text-xs text-amber-400/80 mt-4 font-semibold">Ödenmemiş toplam hakediş tutarı</div>
           </div>
         </div>
 
