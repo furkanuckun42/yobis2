@@ -25,10 +25,13 @@ export default function Charts({ data = [], records = [], selectedMonth = 'ALL' 
   const expenseRecords = filteredRecords.filter(r => r.type === 'GIDER')
   const totalExpenses = expenseRecords.reduce((sum, r) => sum + r.amount, 0)
   
+  const isEquipment = (r) => r.description && (r.description.toUpperCase().includes('(EKİPMAN)') || r.description.toUpperCase().includes('(EKIPMAN)'))
+
   const expenseCategories = {
-    personel: expenseRecords.filter(r => r.workLogId != null).reduce((sum, r) => sum + r.amount, 0),
-    cari: expenseRecords.filter(r => r.category === 'CARI' || r.cariId != null).reduce((sum, r) => sum + r.amount, 0),
-    diger: expenseRecords.filter(r => r.workLogId == null && r.category === 'KASA' && r.cariId == null).reduce((sum, r) => sum + r.amount, 0)
+    personel: expenseRecords.filter(r => r.workLogId != null && !isEquipment(r)).reduce((sum, r) => sum + r.amount, 0),
+    cari: expenseRecords.filter(r => (r.category === 'CARI' || r.cariId != null) && !isEquipment(r)).reduce((sum, r) => sum + r.amount, 0),
+    ekipman: expenseRecords.filter(r => isEquipment(r)).reduce((sum, r) => sum + r.amount, 0),
+    diger: expenseRecords.filter(r => r.workLogId == null && r.category === 'KASA' && r.cariId == null && !isEquipment(r)).reduce((sum, r) => sum + r.amount, 0)
   }
   
   const incomeRecords = filteredRecords.filter(r => r.type === 'GELIR')
@@ -387,6 +390,25 @@ export default function Charts({ data = [], records = [], selectedMonth = 'ALL' 
                 <div 
                   className="h-full bg-amber-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
                   style={{ width: `${totalExpenses > 0 ? (expenseCategories.cari / totalExpenses) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Ekipman Giderleri */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">Ekipman Alım / Bakım Giderleri</span>
+                <span className="text-white font-bold">
+                  {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(expenseCategories.ekipman)}
+                  <span className="text-gray-500 ml-1.5 font-normal">
+                    ({totalExpenses > 0 ? ((expenseCategories.ekipman / totalExpenses) * 100).toFixed(1) : 0}%)
+                  </span>
+                </span>
+              </div>
+              <div className="w-full h-3 bg-violet-950/30 border border-violet-500/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-cyan-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
+                  style={{ width: `${totalExpenses > 0 ? (expenseCategories.ekipman / totalExpenses) * 100 : 0}%` }}
                 />
               </div>
             </div>
