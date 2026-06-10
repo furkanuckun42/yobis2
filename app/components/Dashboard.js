@@ -65,17 +65,73 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
     })
   }, [events])
 
-
+  const getDaysLeft = (targetDateStr) => {
+    if (!targetDateStr) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const target = new Date(targetDateStr)
+    target.setHours(0, 0, 0, 0)
+    const diffTime = target.getTime() - today.getTime()
+    return Math.round(diffTime / (1000 * 60 * 60 * 24))
+  }
 
   // Yaklaşan Google etkinliklerini filtrele (bugün veya gelecekte olanlar, tarihe göre sıralı)
   const upcomingGoogleEvents = useMemo(() => {
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
     return processedEvents
-      .filter(e => e.type === 'google' && e.parsedDate >= todayStart)
-      .sort((a, b) => a.parsedDate - b.parsedDate)
+      .filter(e => e.type === 'google')
+      .map(e => ({
+        ...e,
+        daysLeft: getDaysLeft(e.date)
+      }))
+      .filter(e => e.daysLeft >= 0)
+      .sort((a, b) => a.daysLeft - b.daysLeft)
       .slice(0, 10)
   }, [processedEvents])
+
+  const combinedHDStudioEvents = useMemo(() => {
+    const upcomingProjs = data?.upcomingProjects || []
+    const projectsList = upcomingProjs.map(p => {
+      const daysLeft = getDaysLeft(p.deliveryDate)
+      return {
+        id: `project-${p.id}`,
+        name: p.name,
+        customerName: p.customer?.name || 'Belirtilmemiş',
+        stage: p.stage,
+        date: p.deliveryDate,
+        type: 'project',
+        daysLeft
+      }
+    })
+
+    const isFreelancer = currentUser?.role === 'freelancer'
+    const generalEventsList = isFreelancer
+      ? []
+      : events
+          .filter(e => e.type !== 'google' && e.type !== 'task' && e.type !== 'project')
+          .map(e => {
+            const daysLeft = getDaysLeft(e.date)
+            let displayStage = 'Etkinlik'
+            if (e.type === 'meeting') displayStage = 'Toplantı'
+            else if (e.type === 'equipment') displayStage = 'Ekipman Gideri'
+            else if (e.type) {
+              displayStage = e.type.charAt(0).toUpperCase() + e.type.slice(1)
+            }
+            return {
+              id: e.id,
+              name: e.title,
+              customerName: '-',
+              stage: displayStage,
+              date: e.date,
+              type: e.type || 'event',
+              daysLeft
+            }
+          })
+
+    const combined = [...projectsList, ...generalEventsList]
+    const filtered = combined.filter(item => item.daysLeft >= 1 && item.daysLeft <= 3)
+    return filtered.sort((a, b) => a.daysLeft - b.daysLeft)
+  }, [data, events, currentUser])
+
 
   // Bugünün Gündemi etkinlikleri (Çalışmalar ve Görevler)
   const todayEvents = useMemo(() => {
@@ -840,53 +896,56 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
             )}
 
             <span className="text-xs px-2.5 py-1 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-full font-semibold">
-              {activeUpcomingTab === 'hdstudio' ? `${upcomingProjects.length} Çalışma` : `${upcomingGoogleEvents.length} Etkinlik`}
+              {activeUpcomingTab === 'hdstudio' ? `${combinedHDStudioEvents.length} Etkinlik` : `${upcomingGoogleEvents.length} Etkinlik`}
             </span>
           </div>
         </div>
 
         {activeUpcomingTab === 'hdstudio' ? (
-          upcomingProjects.length === 0 ? (
+          combinedHDStudioEvents.length === 0 ? (
             <div className="text-center py-12 text-gray-500 text-sm">
-              Yaklaşan aktif bir çalışma teslimatı bulunamadı.
+              Yaklaşan aktif bir çalışma teslimatı veya etkinlik bulunamadı.
             </div>
           ) : (
             <div className="overflow-x-auto animate-fade-in">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-violet-500/10 text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="pb-3">Çalışma Adı</th>
+                    <th className="pb-3">Çalışma / Etkinlik Adı</th>
                     <th className="pb-3">Müşteri</th>
-                    <th className="pb-3">Aşama</th>
-                    <th className="pb-3">Teslim Tarihi</th>
+                    <th className="pb-3">Aşama / Tür</th>
+                    <th className="pb-3">Teslim / Etkinlik Tarihi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {upcomingProjects.map((project) => {
-                    const daysLeft = Math.ceil((new Date(project.deliveryDate) - new Date()) / (1000 * 60 * 60 * 24))
+                  {combinedHDStudioEvents.map((item) => {
                     let stageColor = 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                    if (project.stage === 'Teklif Aşamasında') stageColor = 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                    else if (project.stage === 'Devam Ediyor') stageColor = 'bg-violet-500/10 text-violet-400 border-violet-500/20'
-                    else if (project.stage === 'Revize Bekliyor') stageColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                    else if (project.stage === 'Teslime Hazır') stageColor = 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+                    if (item.stage === 'Teklif Aşamasında') stageColor = 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                    else if (item.stage === 'Devam Ediyor') stageColor = 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                    else if (item.stage === 'Revize Bekliyor') stageColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    else if (item.stage === 'Teslime Hazır') stageColor = 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+                    else if (item.stage === 'Ödemesi Alındı') stageColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    else if (item.type === 'meeting' || item.stage === 'Toplantı') stageColor = 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                    else if (item.type === 'equipment') stageColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    else stageColor = 'bg-violet-500/10 text-violet-400 border-violet-500/20'
                     
                     return (
-                      <tr key={project.id} className="border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300">
-                        <td className="py-3.5 font-semibold text-white">{project.name}</td>
-                        <td className="py-3.5">{project.customer?.name || 'Belirtilmemiş'}</td>
+                      <tr key={item.id} className="border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300">
+                        <td className="py-3.5 font-semibold text-white">{item.name}</td>
+                        <td className="py-3.5">{item.customerName}</td>
                         <td className="py-3.5">
                           <span className={`px-2 py-0.5 text-xs rounded border ${stageColor}`}>
-                            {project.stage}
+                            {item.stage}
                           </span>
                         </td>
                         <td className="py-3.5 font-medium">
-                          {new Date(project.deliveryDate).toLocaleDateString('tr-TR')}
-                          {daysLeft > 0 ? (
-                            <span className="ml-2 text-xs text-violet-400/80">({daysLeft} gün kaldı)</span>
-                          ) : daysLeft === 0 ? (
+                          {new Date(item.date).toLocaleDateString('tr-TR')}
+                          {item.daysLeft > 0 ? (
+                            <span className="ml-2 text-xs text-violet-400/80">({item.daysLeft} gün kaldı)</span>
+                          ) : item.daysLeft === 0 ? (
                             <span className="ml-2 text-xs text-rose-400 font-bold">(Bugün!)</span>
                           ) : (
-                            <span className="ml-2 text-xs text-rose-500">({Math.abs(daysLeft)} gün gecikti)</span>
+                            <span className="ml-2 text-xs text-rose-500">({Math.abs(item.daysLeft)} gün gecikti)</span>
                           )}
                         </td>
                       </tr>
@@ -914,7 +973,7 @@ export default function Dashboard({ triggerRefresh, currentUser, setActiveTab, o
                 </thead>
                 <tbody>
                   {upcomingGoogleEvents.map((ev) => {
-                    const daysLeft = Math.ceil((new Date(ev.date) - new Date()) / (1000 * 60 * 60 * 24))
+                    const daysLeft = ev.daysLeft
                     return (
                       <tr key={ev.id} className="border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300">
                         <td className="py-3.5 font-semibold text-white">{ev.title}</td>

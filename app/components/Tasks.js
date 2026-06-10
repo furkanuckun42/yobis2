@@ -6,10 +6,15 @@ import { Calendar, CheckCircle2, Circle, Clock, ClipboardList, Plus, Trash2, Use
 export default function Tasks({ currentUser, addToast, showConfirm }) {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
+  const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   
   // Tab/Filtreleme
   const [activeFilter, setActiveFilter] = useState('all') // 'all', 'my', veya 'project'
+  const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
 
   // Ekleme formu state'leri
   const [showAddForm, setShowAddForm] = useState(false)
@@ -21,13 +26,14 @@ export default function Tasks({ currentUser, addToast, showConfirm }) {
 
   const fetchTasksAndUsers = async () => {
     try {
-      const [tasksRes, usersRes] = await Promise.all([
+      const [tasksRes, usersRes, customersRes] = await Promise.all([
         fetch('/api/tasks'),
         fetch('/api/auth/users', {
           headers: {
             'x-requester-id': currentUser?.id || ''
           }
-        })
+        }),
+        fetch('/api/customers')
       ])
 
       if (tasksRes.ok) {
@@ -37,6 +43,10 @@ export default function Tasks({ currentUser, addToast, showConfirm }) {
       if (usersRes.ok) {
         const usersData = await usersRes.json()
         setUsers(usersData)
+      }
+      if (customersRes.ok) {
+        const customersData = await customersRes.json()
+        setCustomers(customersData)
       }
     } catch (err) {
       console.error(err)
@@ -146,13 +156,47 @@ export default function Tasks({ currentUser, addToast, showConfirm }) {
   // Görevleri filtrele
   const filteredTasks = tasks.filter(task => {
     if (activeFilter === 'my') {
-      return task.assignedUserId === currentUser?.id
+      if (task.assignedUserId !== currentUser?.id) return false
+    } else if (activeFilter === 'project') {
+      if (task.projectId == null) return false
     }
-    if (activeFilter === 'project') {
-      return task.projectId != null
+
+    if (selectedCustomerId) {
+      if (task.project?.customerId !== selectedCustomerId) return false
     }
+
+    if (selectedMonth) {
+      if (!task.dueDate) return false
+      const taskMonth = task.dueDate.substring(0, 7) // "YYYY-MM"
+      if (taskMonth !== selectedMonth) return false
+    }
+
+    if (selectedUserId) {
+      if (task.assignedUserId !== selectedUserId) return false
+    }
+
+    if (selectedDate) {
+      if (!task.dueDate) return false
+      const taskDate = task.dueDate.substring(0, 10) // "YYYY-MM-DD"
+      if (taskDate !== selectedDate) return false
+    }
+
     return true
   })
+
+  // Görevleri Sırala (Default Sıralama: tarihlere göre yakından uzağa, tarihi olmayanlar en sonda en yeniye göre)
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    if (a.dueDate && b.dueDate) {
+      return new Date(a.dueDate) - new Date(b.dueDate)
+    }
+    if (a.dueDate) return -1
+    if (b.dueDate) return 1
+    return new Date(b.createdAt) - new Date(a.createdAt)
+  })
+
+  // Aktif ve Tamamlanan Görevleri Ayır
+  const activeTasks = sortedTasks.filter(t => t.status !== 'Tamamlandı')
+  const completedTasks = sortedTasks.filter(t => t.status === 'Tamamlandı')
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -163,6 +207,86 @@ export default function Tasks({ currentUser, addToast, showConfirm }) {
       default:
         return 'border-amber-500/20 text-amber-400 bg-amber-950/10'
     }
+  }
+
+  const renderTaskCard = (task) => {
+    const isAssignedToCurrentUser = task.assignedUserId === currentUser?.id
+    const canEditStatus = currentUser?.role === 'admin' || isAssignedToCurrentUser
+
+    return (
+      <div
+        key={task.id}
+        className="p-5 rounded-2xl border border-violet-500/10 bg-violet-950/10 flex flex-col justify-between space-y-4 group hover:border-violet-500/20 transition-all duration-200 text-left"
+      >
+        <div className="space-y-2">
+          {task.projectId && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 animate-pulse">
+              Çalışma{task.project?.name ? `: ${task.project.name}` : ''}
+              {task.project?.customer?.name && ` | Müşteri: ${task.project.customer.name}`}
+            </span>
+          )}
+          <div className="flex items-start justify-between">
+            <h4 className="font-bold text-white text-base leading-snug">{task.title}</h4>
+            {currentUser?.role === 'admin' && (
+              <button
+                onClick={() => handleDeleteTask(task.id)}
+                className="p-1.5 rounded-lg border border-rose-500/10 hover:border-rose-500/30 bg-rose-950/5 hover:bg-rose-950/20 text-rose-400 transition opacity-60 group-hover:opacity-100 cursor-pointer"
+                title="Görevi Sil"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {task.description && (
+            <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">{task.description}</p>
+          )}
+        </div>
+
+        <div className="pt-3 border-t border-violet-500/5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {/* Atanan Kişi */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-violet-950/20 px-2.5 py-1.5 rounded-lg border border-violet-500/5">
+              <User className="w-3.5 h-3.5 text-violet-400" />
+              <span className="font-semibold text-white">
+                {task.assignedUser?.displayName || task.assignedUser?.username || 'Atanmadı'}
+              </span>
+            </div>
+
+            {/* Teslim Tarihi */}
+            {task.dueDate && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-violet-950/20 px-2.5 py-1.5 rounded-lg border border-violet-500/5">
+                <Calendar className="w-3.5 h-3.5 text-violet-400" />
+                <span className="font-medium text-white">
+                  {new Date(task.dueDate).toLocaleDateString('tr-TR')}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Durum / Durum Değiştirme */}
+          {canEditStatus ? (
+            <select
+              value={task.status}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
+              className={`text-xs px-2.5 py-1.5 rounded border font-semibold cursor-pointer focus:outline-none bg-[#0a0516] ${getStatusStyle(
+                task.status
+              )}`}
+            >
+              <option value="Bekliyor" className="bg-[#05020c] text-white">Bekliyor</option>
+              <option value="Devam Ediyor" className="bg-[#05020c] text-white">Devam Ediyor</option>
+              <option value="Tamamlandı" className="bg-[#05020c] text-white">Tamamlandı</option>
+            </select>
+          ) : (
+            <span className={`px-2.5 py-1 text-xs rounded border font-semibold ${getStatusStyle(
+              task.status
+            )}`}>
+              {task.status}
+            </span>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -298,95 +422,112 @@ export default function Tasks({ currentUser, addToast, showConfirm }) {
         </button>
       </div>
 
-      {/* Görevler Tablosu / Listesi */}
+      {/* Detaylı Filtreleme Paneli */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-2xl glass-card border border-violet-500/10 text-left">
+        <div>
+          <label className="text-[11px] text-gray-400 block mb-1 font-medium">Müşteriye Göre</label>
+          <select
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value)}
+            className="w-full text-xs px-3.5 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px]"
+          >
+            <option value="" className="bg-[#05020c]">Tüm Müşteriler</option>
+            {customers.map(c => (
+              <option key={c.id} value={c.id} className="bg-[#05020c]">{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] text-gray-400 block mb-1 font-medium">Aya Göre</label>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="w-full text-xs px-3.5 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px]"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-gray-400 block mb-1 font-medium">Atanan Kişiye Göre</label>
+          <select
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
+            className="w-full text-xs px-3.5 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px]"
+          >
+            <option value="" className="bg-[#05020c]">Herkes</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id} className="bg-[#05020c]">{u.displayName || u.username}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] text-gray-400 block mb-1 font-medium">Tarihe Göre</label>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full text-xs px-3.5 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px]"
+            />
+            {(selectedCustomerId || selectedMonth || selectedUserId || selectedDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerId('')
+                  setSelectedMonth('')
+                  setSelectedUserId('')
+                  setSelectedDate('')
+                }}
+                className="px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition cursor-pointer"
+                title="Filtreleri Temizle"
+              >
+                X
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Aktif Görevler Listesi */}
       <div className="p-6 rounded-2xl glass-card space-y-4">
+        <h3 className="font-bold text-lg text-white flex items-center gap-2 pb-2 border-b border-violet-500/10">
+          <Clock className="w-5 h-5 text-violet-400" />
+          <span>Aktif Görevler ({activeTasks.length})</span>
+        </h3>
         {loading ? (
           <div className="py-12 flex justify-center items-center">
             <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : filteredTasks.length === 0 ? (
+        ) : activeTasks.length === 0 ? (
           <div className="text-center py-12 text-gray-500 text-sm">
-            Bu kategoride planlanmış görev bulunamadı.
+            Aktif planlanmış görev bulunamadı.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredTasks.map((task) => {
-              const isAssignedToCurrentUser = task.assignedUserId === currentUser?.id
-              const canEditStatus = currentUser?.role === 'admin' || isAssignedToCurrentUser
+            {activeTasks.map((task) => renderTaskCard(task))}
+          </div>
+        )}
+      </div>
 
-              return (
-                <div
-                  key={task.id}
-                  className="p-5 rounded-2xl border border-violet-500/10 bg-violet-950/10 flex flex-col justify-between space-y-4 group hover:border-violet-500/20 transition-all duration-200"
-                >
-                  <div className="space-y-2">
-                    {task.projectId && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-                        Çalışma{task.project?.name ? `: ${task.project.name}` : ''}
-                      </span>
-                    )}
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-bold text-white text-base leading-snug">{task.title}</h4>
-                      {currentUser?.role === 'admin' && (
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="p-1.5 rounded-lg border border-rose-500/10 hover:border-rose-500/30 bg-rose-950/5 hover:bg-rose-950/20 text-rose-400 transition opacity-60 group-hover:opacity-100 cursor-pointer"
-                          title="Görevi Sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    {task.description && (
-                      <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">{task.description}</p>
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t border-violet-500/5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      {/* Atanan Kişi */}
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-violet-950/20 px-2.5 py-1.5 rounded-lg border border-violet-500/5">
-                        <User className="w-3.5 h-3.5 text-violet-400" />
-                        <span className="font-semibold text-white">
-                          {task.assignedUser?.username || 'Atanmadı'}
-                        </span>
-                      </div>
-
-                      {/* Teslim Tarihi */}
-                      {task.dueDate && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-violet-950/20 px-2.5 py-1.5 rounded-lg border border-violet-500/5">
-                          <Calendar className="w-3.5 h-3.5 text-violet-400" />
-                          <span className="font-medium text-white">
-                            {new Date(task.dueDate).toLocaleDateString('tr-TR')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Durum / Durum Değiştirme */}
-                    {canEditStatus ? (
-                      <select
-                        value={task.status}
-                        onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
-                        className={`text-xs px-2.5 py-1.5 rounded border font-semibold cursor-pointer focus:outline-none ${getStatusStyle(
-                          task.status
-                        )}`}
-                      >
-                        <option value="Bekliyor" className="bg-[#05020c] text-white">Bekliyor</option>
-                        <option value="Devam Ediyor" className="bg-[#05020c] text-white">Devam Ediyor</option>
-                        <option value="Tamamlandı" className="bg-[#05020c] text-white">Tamamlandı</option>
-                      </select>
-                    ) : (
-                      <span className={`px-2.5 py-1 text-xs rounded border font-semibold ${getStatusStyle(
-                        task.status
-                      )}`}>
-                        {task.status}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+      {/* Tamamlanan Görevler Listesi (En Sonda) */}
+      <div className="p-6 rounded-2xl glass-card space-y-4">
+        <h3 className="font-bold text-lg text-emerald-400 flex items-center gap-2 pb-2 border-b border-emerald-500/10">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <span>Tamamlanan Görevler ({completedTasks.length})</span>
+        </h3>
+        {loading ? (
+          <div className="py-12 flex justify-center items-center">
+            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : completedTasks.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 text-sm">
+            Henüz tamamlanan görev bulunamadı.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {completedTasks.map((task) => renderTaskCard(task))}
           </div>
         )}
       </div>

@@ -17,13 +17,21 @@ export async function GET(request) {
           select: {
             id: true,
             username: true,
+            displayName: true,
             role: true
           }
         },
         project: {
           select: {
             id: true,
-            name: true
+            name: true,
+            customerId: true,
+            customer: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       },

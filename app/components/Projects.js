@@ -61,17 +61,22 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
     name: '',
     customerId: '',
     stage: 'Teklif Aşamasında',
-    deliveryDate: ''
+    deliveryDate: '',
+    budget: '',
+    assignedUserId: ''
   })
   const [isEditing, setIsEditing] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
+  const [paymentInput, setPaymentInput] = useState('')
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
 
   const stages = [
     'Teklif Aşamasında',
     'Devam Ediyor',
     'Revize Bekliyor',
     'Teslime Hazır',
-    'Teslim Edildi'
+    'Teslim Edildi',
+    'Ödemesi Alındı'
   ]
 
   const fetchProjectsAndCustomers = async () => {
@@ -161,7 +166,9 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       name: '',
       customerId: '',
       stage: 'Teklif Aşamasında',
-      deliveryDate: ''
+      deliveryDate: '',
+      budget: '',
+      assignedUserId: ''
     })
     setIsEditing(false)
     setSelectedProject(null)
@@ -169,6 +176,7 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
     setRightTab('edit')
     setAttachments([])
     setComments([])
+    setPaymentInput('')
   }
 
   const handleAssignProjectAsTask = async (e) => {
@@ -216,9 +224,59 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       name: project.name,
       customerId: project.customerId,
       stage: project.stage,
-      deliveryDate: formattedDate
+      deliveryDate: formattedDate,
+      budget: project.budget !== undefined ? project.budget.toString() : '',
+      assignedUserId: project.assignedUserId || ''
     })
+    const remaining = Math.max(0, project.budget - project.paidAmount)
+    setPaymentInput(remaining > 0 ? remaining.toString() : '')
     setIsEditing(true)
+  }
+
+  const handleProjectPaymentSubmit = async () => {
+    const amt = parseFloat(paymentInput)
+    if (isNaN(amt) || amt <= 0) {
+      addToast('Lütfen geçerli bir tutar girin.', 'warning')
+      return
+    }
+
+    const remaining = Math.max(0, selectedProject.budget - selectedProject.paidAmount)
+    if (amt > remaining) {
+      addToast('Girilen tutar kalan bakiyeden fazla olamaz.', 'warning')
+      return
+    }
+
+    setIsSubmittingPayment(true)
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-requester-id': currentUser?.id || '',
+          'x-requester-role': currentUser?.role || ''
+        },
+        body: JSON.stringify({
+          id: selectedProject.id,
+          paymentAmount: amt
+        })
+      })
+
+      if (res.ok) {
+        addToast('Ödeme başarıyla alındı ve kasaya işlendi.', 'success')
+        setPaymentInput('')
+        fetchProjectsAndCustomers()
+        resetForm()
+        if (onAction) onAction()
+      } else {
+        const err = await res.json()
+        addToast(err.error || 'Ödeme alınamadı.', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Bağlantı hatası oluştu.', 'error')
+    } finally {
+      setIsSubmittingPayment(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -233,28 +291,45 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       ? { id: selectedProject.id, ...form } 
       : form
 
-    try {
-      const res = await fetch('/api/projects', {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-requester-id': currentUser?.id || '',
-          'x-requester-role': currentUser?.role || ''
-        },
-        body: JSON.stringify(bodyData)
-      })
+    const executeSubmit = async () => {
+      try {
+        const res = await fetch('/api/projects', {
+          method,
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-requester-id': currentUser?.id || '',
+            'x-requester-role': currentUser?.role || ''
+          },
+          body: JSON.stringify(bodyData)
+        })
 
-      if (res.ok) {
-        fetchProjectsAndCustomers()
-        resetForm()
-        if (onAction) onAction()
-      } else {
-        const err = await res.json()
-        addToast(err.error || 'İşlem başarısız', 'error')
+        if (res.ok) {
+          addToast('Çalışma başarıyla kaydedildi.', 'success')
+          fetchProjectsAndCustomers()
+          resetForm()
+          if (onAction) onAction()
+        } else {
+          const err = await res.json()
+          addToast(err.error || 'İşlem başarısız', 'error')
+        }
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
     }
+
+    if (isEditing && form.stage === 'Ödemesi Alındı' && selectedProject.stage !== 'Ödemesi Alındı') {
+      const remaining = Math.max(0, selectedProject.budget - selectedProject.paidAmount)
+      if (remaining > 0) {
+        showConfirm(
+          `Çalışmayı "Ödemesi Alındı" aşamasına geçirmek istiyor musunuz? Kalan tutar (${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(remaining)}) kasaya gelir olarak kaydedilecektir.`,
+          executeSubmit,
+          'Ödeme Onayı'
+        )
+        return
+      }
+    }
+
+    executeSubmit()
   }
 
   const handleDelete = async (id) => {
@@ -301,25 +376,41 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
   }
 
   const handleFastStageChange = async (projectId, newStage) => {
-    try {
-      const res = await fetch('/api/projects', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-requester-id': currentUser?.id || '',
-          'x-requester-role': currentUser?.role || ''
-        },
-        body: JSON.stringify({ id: projectId, stage: newStage })
-      })
-      if (res.ok) {
-        fetchProjectsAndCustomers()
-        if (onAction) onAction()
-      } else {
-        const err = await res.json()
-        addToast(err.error || 'Aşama güncellenemedi', 'error')
+    const proj = projects.find(p => p.id === projectId)
+    const remaining = proj ? Math.max(0, proj.budget - proj.paidAmount) : 0
+
+    const executeChange = async () => {
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-requester-id': currentUser?.id || '',
+            'x-requester-role': currentUser?.role || ''
+          },
+          body: JSON.stringify({ id: projectId, stage: newStage })
+        })
+        if (res.ok) {
+          addToast('Aşama güncellendi.', 'success')
+          fetchProjectsAndCustomers()
+          if (onAction) onAction()
+        } else {
+          const err = await res.json()
+          addToast(err.error || 'Aşama güncellenemedi', 'error')
+        }
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
+    }
+
+    if (newStage === 'Ödemesi Alındı' && remaining > 0) {
+      showConfirm(
+        `Çalışmayı "Ödemesi Alındı" aşamasına geçirmek istiyor musunuz? Kalan tutar (${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(remaining)}) kasaya gelir olarak kaydedilecektir.`,
+        executeChange,
+        'Ödeme Onayı'
+      )
+    } else {
+      executeChange()
     }
   }
 
@@ -329,7 +420,8 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       case 'Devam Ediyor': return 40
       case 'Revize Bekliyor': return 65
       case 'Teslime Hazır': return 85
-      case 'Teslim Edildi': return 100
+      case 'Teslim Edildi':
+      case 'Ödemesi Alındı': return 100
       default: return 0
     }
   }
@@ -341,6 +433,7 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       case 'Revize Bekliyor': return 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
       case 'Teslime Hazır': return 'bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.3)]'
       case 'Teslim Edildi': return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+      case 'Ödemesi Alındı': return 'bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.3)]'
       default: return 'bg-gray-500'
     }
   }
@@ -439,6 +532,8 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
         return 'bg-pink-500/10 text-pink-400 border-pink-500/20'
       case 'Teslim Edildi':
         return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+      case 'Ödemesi Alındı':
+        return 'bg-teal-500/10 text-teal-400 border-teal-500/20'
       default:
         return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
     }
@@ -563,7 +658,7 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
                         </select>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-gray-400">
                         <div className="flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5 text-violet-400" />
                           <span>Müşteri: {p.customer?.name}</span>
@@ -571,6 +666,18 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-violet-400" />
                           <span>Teslim: {new Date(p.deliveryDate).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-violet-400" />
+                          <span>Bütçe: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(p.budget)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-400 font-bold">✓</span>
+                          <span>Ödenen: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(p.paidAmount)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-indigo-400 font-bold">@</span>
+                          <span>Görevli: {p.assignedUser ? (p.assignedUser.displayName || p.assignedUser.username) : 'Atanmadı'}</span>
                         </div>
                       </div>
 
@@ -758,6 +865,34 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
                   />
                 </div>
 
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Proje Ücreti (₺)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={form.budget}
+                    onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                    placeholder="Örn: 15000"
+                    className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500/40 focus:bg-violet-950/30 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Atanan Personel</label>
+                  <select
+                    value={form.assignedUserId}
+                    onChange={(e) => setForm({ ...form, assignedUserId: e.target.value })}
+                    className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500/40 focus:bg-violet-950/30 transition cursor-pointer"
+                  >
+                    <option value="" className="bg-slate-900 text-gray-400">Atanmadı (Boşta)</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id} className="bg-slate-900 text-white">
+                        {u.displayName || u.username} (@{u.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex gap-3 pt-2">
                   {isEditing && (
                     <button
@@ -777,6 +912,75 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
                   </button>
                 </div>
               </form>
+
+              {isEditing && selectedProject && (
+                <div className="mt-6 pt-6 border-t border-violet-500/10 space-y-4">
+                  <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    <span>Ödeme / Tahsilat Yönetimi</span>
+                  </h4>
+                  
+                  <div className="p-4 rounded-xl bg-violet-950/20 border border-violet-500/5 space-y-3">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Toplam Bütçe</span>
+                      <span className="text-white font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(selectedProject.budget)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Ödenen Miktar</span>
+                      <span className="text-emerald-400 font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(selectedProject.paidAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Kalan Bakiye</span>
+                      <span className="text-rose-400 font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Math.max(0, selectedProject.budget - selectedProject.paidAmount))}</span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-violet-950/40 rounded-full h-2 overflow-hidden border border-violet-500/5">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                        style={{ width: `${selectedProject.budget > 0 ? Math.min(100, (selectedProject.paidAmount / selectedProject.budget) * 100) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {selectedProject.paidAmount < selectedProject.budget && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] text-gray-400 block mb-1 font-medium">Ödeme Tutarı (₺)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={paymentInput}
+                          onChange={(e) => setPaymentInput(e.target.value)}
+                          placeholder="Ödeme tutarını girin..."
+                          className="w-full text-xs px-3.5 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const remaining = Math.max(0, selectedProject.budget - selectedProject.paidAmount)
+                            setPaymentInput(remaining.toString())
+                          }}
+                          className="px-2.5 py-1.5 border border-violet-500/20 hover:bg-violet-950/20 text-gray-300 text-[10px] font-semibold rounded-lg transition"
+                        >
+                          Kalanın Hepsini Yaz
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmittingPayment}
+                          onClick={handleProjectPaymentSubmit}
+                          className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        >
+                          {isSubmittingPayment ? <Loader2 className="w-3 h-3 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
+                          <span>Ödeme Al (Kasaya İşle)</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

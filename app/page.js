@@ -739,7 +739,7 @@ export default function Home() {
           </form>
           
           <div className="space-y-1">
-            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.5</div>
+            <div className="text-[11px] font-bold text-violet-400 tracking-wider">HD Studio Yönetim Bilgi Sistemi v2.6</div>
             <div className="text-[10px] text-gray-500">Varsayılan oturum süresi 30 dakikadır.</div>
           </div>
         </div>

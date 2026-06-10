@@ -29,22 +29,27 @@ model Customer {
 
 // Proje Modeli
 model Project {
-  id            String           @id @default(uuid())
-  name          String
-  customerId    String
-  customer      Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  stage         String           // "Teklif Aşamasında", "Devam Ediyor", "Revize Bekliyor", "Teslime Hazır", "Teslim Edildi"
-  deliveryDate  DateTime
-  budget        Float            @default(0)
-  isArchived    Boolean          @default(false)
-  lastUpdatedBy String?
-  tasks         Task[]
-  attachments   Attachment[]
-  comments      ProjectComment[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id             String           @id @default(uuid())
+  name           String
+  customerId     String
+  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stage          String           // "Teklif Aşamasında", "Devam Ediyor", "Revize Bekliyor", "Teslime Hazır", "Teslim Edildi"
+  deliveryDate   DateTime
+  budget         Float            @default(0)
+  paidAmount     Float            @default(0)
+  assignedUserId String?
+  assignedUser   User?            @relation("AssignedProjects", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  isArchived     Boolean          @default(false)
+  lastUpdatedBy  String?
+  tasks          Task[]
+  attachments    Attachment[]
+  comments       ProjectComment[]
+  finances       Finance[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([customerId])
+  @@index([assignedUserId])
 }
 
 // Finans Modeli (Günlük Gelir/Gider Girişi)
@@ -59,6 +64,8 @@ model Finance {
   cariId      String?   // Bizim borçlu olduğumuz firma/cari ID
   cari        Cari?     @relation(fields: [cariId], references: [id], onDelete: SetNull)
   workLogId   String?   // Yevmiye ödemesiyle ilişkilendirilen İş Kayıt ID'si
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   date        DateTime  @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -66,6 +73,7 @@ model Finance {
   @@index([customerId])
   @@index([cariId])
   @@index([workLogId])
+  @@index([projectId])
   @@index([date])
 }
 
@@ -113,18 +121,19 @@ model Event {
 
 // Kullanıcı Modeli
 model User {
-  id            String           @id @default(uuid())
-  username      String           @unique
-  password      String           // SHA-256 hash olarak saklanacak
-  role          String           // "admin" veya "personel"
-  displayName   String?          // Ad Soyad (opsiyonel)
-  assignedTasks Task[]           @relation("AssignedTasks")
-  notifications Notification[]
-  employee      Employee?
-  comments      ProjectComment[]
+  id               String             @id @default(uuid())
+  username         String             @unique
+  password         String             // SHA-256 hash olarak saklanacak
+  role             String             // "admin" veya "personel"
+  displayName      String?            // Ad Soyad (opsiyonel)
+  assignedTasks    Task[]             @relation("AssignedTasks")
+  assignedProjects Project[]          @relation("AssignedProjects")
+  notifications    Notification[]
+  employee         Employee?
+  comments         ProjectComment[]
   pushSubscriptions PushSubscription[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 // Cari (Bizim borçlu olduğumuz firmalar) Modeli
