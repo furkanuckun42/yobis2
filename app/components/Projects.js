@@ -63,7 +63,8 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
     stage: 'Teklif Aşamasında',
     deliveryDate: '',
     budget: '',
-    assignedUserId: ''
+    assignedUserId: '',
+    newPayment: ''
   })
   const [isEditing, setIsEditing] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
@@ -168,7 +169,8 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       stage: 'Teklif Aşamasında',
       deliveryDate: '',
       budget: '',
-      assignedUserId: ''
+      assignedUserId: '',
+      newPayment: ''
     })
     setIsEditing(false)
     setSelectedProject(null)
@@ -226,7 +228,8 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       stage: project.stage,
       deliveryDate: formattedDate,
       budget: project.budget !== undefined ? project.budget.toString() : '',
-      assignedUserId: project.assignedUserId || ''
+      assignedUserId: project.assignedUserId || '',
+      newPayment: ''
     })
     const remaining = Math.max(0, project.budget - project.paidAmount)
     setPaymentInput(remaining > 0 ? remaining.toString() : '')
@@ -264,8 +267,28 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
       if (res.ok) {
         addToast('Ödeme başarıyla alındı ve kasaya işlendi.', 'success')
         setPaymentInput('')
-        fetchProjectsAndCustomers()
-        resetForm()
+        const updatedProj = await res.json()
+        
+        // Refresh project list
+        await fetchProjectsAndCustomers()
+        
+        // Update selectedProject and form to keep detail view open with fresh data
+        setSelectedProject(updatedProj)
+        
+        const rawDate = new Date(updatedProj.deliveryDate)
+        const formattedDate = getLocalDateString(rawDate)
+        setForm({
+          name: updatedProj.name,
+          customerId: updatedProj.customerId,
+          stage: updatedProj.stage,
+          deliveryDate: formattedDate,
+          budget: updatedProj.budget !== undefined ? updatedProj.budget.toString() : '',
+          assignedUserId: updatedProj.assignedUserId || ''
+        })
+        
+        const remaining = Math.max(0, updatedProj.budget - updatedProj.paidAmount)
+        setPaymentInput(remaining > 0 ? remaining.toString() : '')
+        
         if (onAction) onAction()
       } else {
         const err = await res.json()
@@ -287,9 +310,16 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
     }
 
     const method = isEditing ? 'PUT' : 'POST'
-    const bodyData = isEditing 
+    let bodyData = isEditing 
       ? { id: selectedProject.id, ...form } 
       : form
+
+    if (isEditing && form.newPayment) {
+      const amt = parseFloat(form.newPayment)
+      if (!isNaN(amt) && amt > 0) {
+        bodyData = { ...bodyData, paymentAmount: amt }
+      }
+    }
 
     const executeSubmit = async () => {
       try {
@@ -876,6 +906,24 @@ export default function Projects({ onAction, currentUser, addToast, showConfirm 
                     className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500/40 focus:bg-violet-950/30 transition"
                   />
                 </div>
+
+                {isEditing && selectedProject && (
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-1 font-semibold text-emerald-400">Yeni Ödeme / Taksit Ekle (₺)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.newPayment || ''}
+                      onChange={(e) => setForm({ ...form, newPayment: e.target.value })}
+                      placeholder="Kasaya işlenecek ödeme tutarı..."
+                      className="w-full text-sm px-4 py-2.5 rounded-xl bg-violet-950/20 border border-emerald-500/20 focus:border-emerald-500/50 text-white focus:outline-none focus:bg-violet-950/30 transition font-medium"
+                    />
+                    <div className="text-[10px] text-gray-500 mt-1 flex justify-between">
+                      <span>Ödenen: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(selectedProject.paidAmount)}</span>
+                      <span>Kalan: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Math.max(0, selectedProject.budget - selectedProject.paidAmount))}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Atanan Personel</label>

@@ -49,7 +49,7 @@ export async function POST(request) {
         stage,
         deliveryDate: new Date(deliveryDate),
         budget: parseFloat(budget || 0),
-        assignedUserId: assignedUserId || null,
+        assignedUser: assignedUserId ? { connect: { id: assignedUserId } } : undefined,
         lastUpdatedBy: creatorName,
       },
       include: {
@@ -195,9 +195,16 @@ export async function PUT(request) {
       deliveryDate: deliveryDate !== undefined ? new Date(deliveryDate) : existing.deliveryDate,
       budget: budget !== undefined ? parseFloat(budget || 0) : existing.budget,
       paidAmount: finalPaidAmount,
-      assignedUserId: assignedUserId !== undefined ? (assignedUserId || null) : existing.assignedUserId,
       isArchived: isArchived !== undefined ? Boolean(isArchived) : existing.isArchived,
       lastUpdatedBy: updaterName,
+    }
+
+    if (assignedUserId !== undefined) {
+      if (assignedUserId) {
+        updateData.assignedUser = { connect: { id: assignedUserId } }
+      } else {
+        updateData.assignedUser = { disconnect: true }
+      }
     }
 
     if (customerId !== undefined) {
