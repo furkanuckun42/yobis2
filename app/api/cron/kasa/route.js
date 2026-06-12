@@ -37,7 +37,11 @@ export async function GET(request) {
         where: { category: 'KASA', type: 'GIDER' },
         _sum: { amount: true }
       })
-      const balance = (aggGelir._sum.amount || 0) - (aggGider._sum.amount || 0)
+      const aggKarAlma = await prisma.finance.aggregate({
+        where: { category: 'KASA', type: 'KAR_ALMA' },
+        _sum: { amount: true }
+      })
+      const balance = (aggGelir._sum.amount || 0) - (aggGider._sum.amount || 0) - (aggKarAlma._sum.amount || 0)
       
       // Biçimlendirme
       const formattedBalance = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(balance)

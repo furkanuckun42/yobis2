@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/kasa",
-      "schedule": "30 16 * * *"
+      "schedule": "0 16 * * *"
     }
   ]
 }

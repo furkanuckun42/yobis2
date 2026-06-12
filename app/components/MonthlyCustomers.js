@@ -44,6 +44,9 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
   const [selectedMonth, setSelectedMonth] = useState(() => {
     return getLocalMonthString()
   })
+  
+  // Tab Filter
+  const [activeTabFilter, setActiveTabFilter] = useState('active') // 'active', 'completed', 'archived'
 
   // Modal State for New Card
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -578,81 +581,68 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
         </div>
       </div>
 
+      {/* Filtre Sekmeleri */}
+      <div className="flex bg-violet-950/30 p-1 rounded-xl border border-violet-500/10 w-full md:w-fit overflow-x-auto gap-1">
+        <button
+          onClick={() => setActiveTabFilter('active')}
+          className={`flex-1 md:flex-initial px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTabFilter === 'active'
+              ? 'bg-violet-600 text-white glow-purple shadow-sm'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>Devam Edenler ({activeCards.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTabFilter('completed')}
+          className={`flex-1 md:flex-initial px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTabFilter === 'completed'
+              ? 'bg-amber-600/80 text-white glow-amber shadow-sm'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          <span>Ödeme Bekleyenler ({completedCards.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTabFilter('archived')}
+          className={`flex-1 md:flex-initial px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTabFilter === 'archived'
+              ? 'bg-emerald-600/80 text-white glow-green shadow-sm'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span>Ödenenler & Arşiv ({archivedCards.length})</span>
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
           <span className="text-xs text-gray-400 font-medium">Kartlar yükleniyor...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Column 1: Devam Edenler */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-violet-500/10 pb-3">
-              <h3 className="text-sm font-extrabold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-violet-400" />
-                Devam Edenler
-              </h3>
-              <span className="text-xs bg-violet-500/10 border border-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full font-bold">
-                {activeCards.length}
-              </span>
-            </div>
-            
-            <div className="space-y-4 min-h-[500px]">
-              {activeCards.length === 0 ? (
-                <div className="p-6 rounded-xl border border-dashed border-violet-500/10 text-center text-xs text-gray-500">
-                  Devam eden aylık müşteri kartı bulunmamaktadır.
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+          {(() => {
+            const displayCards = 
+              activeTabFilter === 'active' ? activeCards :
+              activeTabFilter === 'completed' ? completedCards :
+              archivedCards
+
+            if (displayCards.length === 0) {
+              return (
+                <div className="p-12 rounded-2xl border border-dashed border-violet-500/10 text-center text-xs text-gray-500 col-span-full">
+                  {activeTabFilter === 'active' && 'Devam eden aylık müşteri kartı bulunmamaktadır.'}
+                  {activeTabFilter === 'completed' && 'Tüm maddeleri tamamlanıp ödeme bekleyen kart bulunmamaktadır.'}
+                  {activeTabFilter === 'archived' && 'Arşivlenmiş veya ödenmiş kart bulunmamaktadır.'}
                 </div>
-              ) : (
-                activeCards.map(card => renderCard(card))
-              )}
-            </div>
-          </div>
+              )
+            }
 
-          {/* Column 2: Tamamlananlar & Ödeme Bekleyenler */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-amber-500/10 pb-3">
-              <h3 className="text-sm font-extrabold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-amber-400 animate-pulse" />
-                Ödeme Bekleyenler
-              </h3>
-              <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">
-                {completedCards.length}
-              </span>
-            </div>
-
-            <div className="space-y-4 min-h-[500px]">
-              {completedCards.length === 0 ? (
-                <div className="p-6 rounded-xl border border-dashed border-amber-500/10 text-center text-xs text-gray-500">
-                  Tüm maddeleri tamamlanıp ödeme bekleyen kart bulunmamaktadır.
-                </div>
-              ) : (
-                completedCards.map(card => renderCard(card))
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Arşivlenenler (Paid / Archived) */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-              <h3 className="text-sm font-extrabold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                Ödenenler & Arşiv
-              </h3>
-              <span className="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                {archivedCards.length}
-              </span>
-            </div>
-
-            <div className="space-y-4 min-h-[500px]">
-              {archivedCards.length === 0 ? (
-                <div className="p-6 rounded-xl border border-dashed border-emerald-500/10 text-center text-xs text-gray-500">
-                  Arşivlenmiş veya ödenmiş kart bulunmamaktadır.
-                </div>
-              ) : (
-                archivedCards.map(card => renderCard(card))
-              )}
-            </div>
-          </div>
+            return displayCards.map(card => renderCard(card))
+          })()}
         </div>
       )}
 
@@ -723,17 +713,18 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
         <div className="space-y-2">
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Aylık Ürün / İş Takibi</p>
           
-          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
             {card.items.length === 0 ? (
               <p className="text-xs text-gray-500 italic">Eklenecek madde bulunmuyor.</p>
             ) : (
               card.items.map(item => (
-                <div key={item.id} className="flex items-center justify-between group/item p-1.5 rounded-lg hover:bg-violet-950/10 transition">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div key={item.id} className="flex flex-col p-2.5 rounded-xl bg-violet-950/20 border border-violet-500/5 hover:border-violet-500/10 hover:bg-violet-950/30 transition-all duration-200">
+                  {/* Row 1: Checkbox & Title */}
+                  <div className="flex items-start gap-2.5 min-w-0">
                     <button
                       disabled={isArchived}
                       onClick={() => handleToggleItem(item, !item.completed)}
-                      className={`p-0.5 rounded border transition cursor-pointer flex-shrink-0 ${
+                      className={`p-0.5 rounded border transition cursor-pointer flex-shrink-0 mt-0.5 ${
                         item.completed
                           ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400'
                           : 'border-violet-500/25 hover:border-violet-500 text-transparent'
@@ -753,19 +744,19 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                             if (e.key === 'Escape') setEditingItemId(null)
                           }}
                           autoFocus
-                          className="bg-violet-950/40 border border-violet-500/25 text-xs px-2 py-0.5 rounded text-white focus:outline-none focus:border-violet-500 flex-1 min-w-0"
+                          className="bg-[#0c061a] border border-violet-500/25 text-xs px-2.5 py-1 rounded-lg text-white focus:outline-none focus:border-violet-500 flex-1 min-w-0"
                         />
                         <button
                           onClick={() => handleSaveItemTitle(item.id)}
-                          className="p-0.5 text-emerald-400 hover:bg-emerald-500/10 rounded cursor-pointer flex-shrink-0"
+                          className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-lg cursor-pointer flex-shrink-0"
                         >
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setEditingItemId(null)}
-                          className="p-0.5 text-rose-400 hover:bg-rose-500/10 rounded cursor-pointer flex-shrink-0"
+                          className="p-1 text-rose-400 hover:bg-rose-500/10 rounded-lg cursor-pointer flex-shrink-0"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
@@ -776,7 +767,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                             setEditingItemTitle(item.title)
                           }
                         }}
-                        className={`text-xs truncate ${item.completed ? 'text-gray-500 line-through' : 'text-gray-300'} ${!isArchived ? 'cursor-pointer hover:text-white' : ''}`}
+                        className={`text-xs font-semibold whitespace-normal break-words leading-relaxed flex-1 ${item.completed ? 'text-gray-500 line-through' : 'text-gray-200'} ${!isArchived ? 'cursor-pointer hover:text-white' : ''}`}
                         title={item.title}
                       >
                         {item.title}
@@ -784,41 +775,44 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                     )}
                   </div>
 
-                  {/* Assignee & Due Date Indicators */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0 pl-2">
-                    {isArchived ? (
-                      <>
+                  {/* Row 2: Controls or Archived Badges */}
+                  {isArchived ? (
+                    (item.task?.assignedUser || item.task?.dueDate) && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-violet-500/5 mt-1.5 text-gray-500">
                         {item.task?.assignedUser && (
                           <span
-                            className="w-5 h-5 rounded-full bg-violet-600/35 border border-violet-500/20 text-[9px] font-bold text-violet-300 flex items-center justify-center uppercase"
+                            className="px-2 py-0.5 rounded-md bg-violet-950/25 border border-violet-500/10 text-[9px] font-bold text-violet-400/80 uppercase flex items-center gap-1"
                             title={`Atanan Kişi: ${item.task.assignedUser.displayName || item.task.assignedUser.username}`}
                           >
-                            {(item.task.assignedUser.displayName || item.task.assignedUser.username).substring(0, 2)}
+                            <User className="w-2.5 h-2.5" />
+                            {item.task.assignedUser.displayName || item.task.assignedUser.username}
                           </span>
                         )}
 
                         {item.task?.dueDate && (
                           <span 
-                            className="text-[9px] px-1.5 py-0.5 rounded border font-semibold flex items-center gap-1 border-gray-500/25 text-gray-500 bg-gray-500/5"
+                            className="text-[9px] px-2 py-0.5 rounded-md border font-semibold flex items-center gap-1 border-gray-500/25 text-gray-500 bg-gray-500/5"
                             title={`Teslim Tarihi: ${new Date(item.task.dueDate).toLocaleDateString('tr-TR')}`}
                           >
                             <Calendar className="w-2.5 h-2.5" />
                             {new Date(item.task.dueDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
                           </span>
                         )}
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-violet-500/5 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {/* Inline Assignee Selection */}
-                        <div className="relative flex items-center bg-violet-950/20 border border-violet-500/10 rounded px-1.5 py-0.5 hover:border-violet-500/30 transition">
-                          <User className="w-3 h-3 text-violet-400 mr-0.5 pointer-events-none" />
+                        <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg px-2 py-0.5 hover:border-violet-500/30 transition-all">
+                          <User className="w-2.5 h-2.5 text-violet-400 mr-1 pointer-events-none" />
                           <select
                             value={item.task?.assignedUserId || ''}
                             onChange={(e) => handleUpdateItemAssignee(item.id, e.target.value)}
-                            className="bg-transparent border-none text-[9px] text-violet-300 focus:outline-none cursor-pointer font-bold p-0 max-w-[65px] h-4"
+                            className="bg-transparent border-none text-[10px] text-violet-300 focus:outline-none cursor-pointer font-bold p-0 min-w-[65px] h-4"
                             title="Atanan Kişi"
                           >
-                            <option value="" className="bg-[#05020c] text-white">Ata...</option>
+                            <option value="" className="bg-[#05020c] text-white">Atanmadı</option>
                             {users.map(u => (
                               <option key={u.id} value={u.id} className="bg-[#05020c] text-white">
                                 {u.displayName || u.username}
@@ -828,17 +822,19 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                         </div>
 
                         {/* Inline Due Date Picker */}
-                        <div className="relative flex items-center bg-violet-950/20 border border-violet-500/10 rounded px-1 py-0.5 hover:border-violet-500/30 transition">
-                          <Calendar className="w-3 h-3 text-violet-400 mr-0.5 pointer-events-none" />
+                        <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg px-2 py-0.5 hover:border-violet-500/30 transition-all">
+                          <Calendar className="w-2.5 h-2.5 text-violet-400 mr-1 pointer-events-none" />
                           <input
                             type="date"
                             value={item.task?.dueDate ? getLocalDateString(new Date(item.task.dueDate)) : ''}
                             onChange={(e) => handleUpdateItemDate(item.id, e.target.value)}
-                            className="bg-transparent border-none text-[9px] text-violet-300 w-[74px] focus:outline-none cursor-pointer font-bold p-0 h-4"
+                            className="bg-transparent border-none text-[10px] text-violet-300 w-[82px] focus:outline-none cursor-pointer font-bold p-0 h-4"
                             title="Teslim Tarihi"
                           />
                         </div>
+                      </div>
 
+                      <div className="flex items-center gap-1.5">
                         {/* Edit Title Button */}
                         {editingItemId !== item.id && (
                           <button
@@ -846,7 +842,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                               setEditingItemId(item.id)
                               setEditingItemTitle(item.title)
                             }}
-                            className="text-gray-500 hover:text-violet-400 p-0.5 rounded transition cursor-pointer"
+                            className="p-1 hover:bg-violet-500/15 text-gray-400 hover:text-violet-300 rounded-lg transition cursor-pointer"
                             title="Başlığı Düzenle"
                           >
                             <Pencil className="w-3 h-3" />
@@ -856,14 +852,14 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                         {/* Delete Item Button */}
                         <button
                           onClick={() => handleDeleteItem(item.id)}
-                          className="text-gray-500 hover:text-rose-400 p-0.5 rounded transition cursor-pointer"
+                          className="p-1 hover:bg-rose-500/15 text-gray-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
                           title="Maddeyi Sil"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}

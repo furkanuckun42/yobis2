@@ -72,7 +72,7 @@ export async function POST(request) {
 
     // Görev birine atandıysa ve atayan kişi kendisi değilse bildirim gönder
     if (assignedUserId && assignedUserId !== requesterId) {
-      sendSystemNotification({
+      await sendSystemNotification({
         userId: assignedUserId,
         message: `Size yeni bir görev atandı: ${title}`,
         tab: 'tasks'
@@ -137,7 +137,7 @@ export async function PUT(request) {
 
     // Eğer yeni bir kullanıcıya atandıysa veya atanan kişi değiştiyse (ve kişi kendi kendine değilse) bildirim gönder
     if (assignedUserId && assignedUserId !== existingTask.assignedUserId && assignedUserId !== requesterId) {
-      sendSystemNotification({
+      await sendSystemNotification({
         userId: assignedUserId,
         message: `Size yeni bir görev atandı: ${title || updatedTask.title}`,
         tab: 'tasks'
@@ -146,23 +146,21 @@ export async function PUT(request) {
 
     // Admin dışındaki kullanıcıların yaptığı değişiklikleri admine bildirim olarak gönder
     if (requesterRole !== 'admin' && requesterId) {
-      ;(async () => {
-        try {
-          const updater = await prisma.user.findUnique({ where: { id: requesterId } })
-          const updaterName = updater?.displayName || updater?.username || 'Personel'
-          const prefix = requesterRole === 'freelancer' ? '[Freelancer] ' : ''
-          const admins = await prisma.user.findMany({ where: { role: 'admin' } })
-          for (const admin of admins) {
-            sendSystemNotification({
-              userId: admin.id,
-              message: `${prefix}${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
-              tab: 'tasks'
-            })
-          }
-        } catch (err) {
-          console.error('Görev güncelleme bildirim hatası:', err)
-        }
-      })()
+      try {
+        const updater = await prisma.user.findUnique({ where: { id: requesterId } })
+        const updaterName = updater?.displayName || updater?.username || 'Personel'
+        const prefix = requesterRole === 'freelancer' ? '[Freelancer] ' : ''
+        const admins = await prisma.user.findMany({ where: { role: 'admin' } })
+        await Promise.all(admins.map(admin =>
+          sendSystemNotification({
+            userId: admin.id,
+            message: `${prefix}${updaterName}, "${updatedTask.title}" görevinin durumunu "${updatedTask.status}" olarak güncelledi.`,
+            tab: 'tasks'
+          })
+        ))
+      } catch (err) {
+        console.error('Görev güncelleme bildirim hatası:', err)
+      }
     }
 
     return NextResponse.json(updatedTask)

@@ -13,7 +13,11 @@ async function getKasaBalance() {
       where: { category: 'KASA', type: 'GIDER' },
       _sum: { amount: true }
     })
-    return (aggGelir._sum.amount || 0) - (aggGider._sum.amount || 0)
+    const aggKarAlma = await prisma.finance.aggregate({
+      where: { category: 'KASA', type: 'KAR_ALMA' },
+      _sum: { amount: true }
+    })
+    return (aggGelir._sum.amount || 0) - (aggGider._sum.amount || 0) - (aggKarAlma._sum.amount || 0)
   } catch (err) {
     console.error('Kasa bakiye hesaplama hatası:', err)
     return 0
@@ -77,6 +81,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Eksik alanlar var' }, { status: 400 })
     }
 
+    if (type === 'KAR_ALMA' && requesterRole !== 'admin') {
+      return NextResponse.json({ error: 'Kâr alma işlemini sadece yöneticiler yapabilir.' }, { status: 403 })
+    }
+
     if (date) {
       try {
         const incomingDateStr = new Date(date).toISOString().split('T')[0]
@@ -91,7 +99,15 @@ export async function POST(request) {
     }
 
     const parsedAmount = parseFloat(amount)
-    const finCategory = category || 'KASA'
+    let finCategory = category || 'KASA'
+    let finalCariId = cariId || null
+    let finalCustomerId = customerId || null
+
+    if (type === 'KAR_ALMA') {
+      finCategory = 'KASA'
+      finalCariId = null
+      finalCustomerId = null
+    }
 
     // 1. Yetki ve Doğrulama: Giriş yapmış tüm yetkili roller cari borç kaydı ekleyebilir
     if (finCategory === 'CARI' && requesterRole !== 'admin' && requesterRole !== 'personel') {
@@ -109,8 +125,8 @@ export async function POST(request) {
         category: finCategory,
         amount: parsedAmount,
         description,
-        customerId: customerId || null,
-        cariId: cariId || null,
+        customerId: finalCustomerId,
+        cariId: finalCariId,
         date: (() => {
           if (date) {
             const [yr, mo, dy] = date.split('-').map(Number)
@@ -165,8 +181,8 @@ export async function POST(request) {
 
     const currentKasa = await getKasaBalance()
 
-    const emoji = type === 'GELIR' ? '💰' : '💸'
-    const typeStr = type === 'GELIR' ? 'GELİR' : 'GİDER'
+    const emoji = type === 'GELIR' ? '💰' : (type === 'KAR_ALMA' ? '🏦' : '💸')
+    const typeStr = type === 'GELIR' ? 'GELİR' : (type === 'KAR_ALMA' ? 'KÂR ALMA' : 'GİDER')
     const descStr = description ? `${description.trim()} ` : ''
 
     await notifyAdmins({
@@ -238,7 +254,7 @@ export async function PUT(request) {
 
     const currentKasa = await getKasaBalance()
 
-    const typeStr = existing.type === 'GELIR' ? 'GELİR' : 'GİDER'
+    const typeStr = existing.type === 'GELIR' ? 'GELİR' : (existing.type === 'KAR_ALMA' ? 'KÂR ALMA' : 'GİDER')
     const descStr = record.description ? `${record.description.trim()} ` : ''
 
     await notifyAdmins({
@@ -311,7 +327,7 @@ export async function DELETE(request) {
 
     const currentKasa = await getKasaBalance()
 
-    const typeStr = existing.type === 'GELIR' ? 'GELİR' : 'GİDER'
+    const typeStr = existing.type === 'GELIR' ? 'GELİR' : (existing.type === 'KAR_ALMA' ? 'KÂR ALMA' : 'GİDER')
     const descStr = existing.description ? `${existing.description.trim()} ` : ''
 
     await notifyAdmins({

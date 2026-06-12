@@ -358,29 +358,55 @@ export default function CalendarPanel({ currentUser, addToast, showConfirm }) {
           <span className={`text-[11px] px-1.5 py-0.5 rounded-md ${isToday ? 'bg-violet-600/20 font-black' : ''}`}>{day}</span>
           
           {dayEvents.length > 0 && (
-            <div className="w-full flex flex-col gap-0.5 mt-1">
-              {dayEvents.slice(0, 2).map((ev, index) => {
-                let colorClass = 'bg-violet-500/10 text-violet-300 border-violet-500/20'
-                if (ev.type === 'equipment') colorClass = 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                if (ev.type === 'project') colorClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                if (ev.type === 'meeting') colorClass = 'bg-sky-500/10 text-sky-300 border-sky-500/20'
-                if (ev.type === 'task') colorClass = 'bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/20'
-                return (
-                  <span 
-                    key={index} 
-                    className={`w-full text-[9px] px-1 py-0.5 rounded border text-left truncate font-bold uppercase tracking-wider block ${colorClass}`}
-                    title={ev.title}
-                  >
-                    {ev.title}
+            <>
+              {/* Desktop view: full tags */}
+              <div className="hidden md:flex w-full flex-col gap-0.5 mt-1">
+                {dayEvents.slice(0, 2).map((ev, index) => {
+                  let colorClass = 'bg-violet-500/10 text-violet-300 border-violet-500/20'
+                  if (ev.type === 'equipment') colorClass = 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                  if (ev.type === 'project') colorClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                  if (ev.type === 'meeting') colorClass = 'bg-sky-500/10 text-sky-300 border-sky-500/20'
+                  if (ev.type === 'task') colorClass = 'bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/20'
+                  return (
+                    <span 
+                      key={index} 
+                      className={`w-full text-[9px] px-1 py-0.5 rounded border text-left truncate font-bold uppercase tracking-wider block ${colorClass}`}
+                      title={ev.title}
+                    >
+                      {ev.title}
+                    </span>
+                  )
+                })}
+                {dayEvents.length > 2 && (
+                  <span className="text-[8px] text-gray-500 font-bold self-end pr-1">
+                    +{dayEvents.length - 2} daha
                   </span>
-                )
-              })}
-              {dayEvents.length > 2 && (
-                <span className="text-[8px] text-gray-500 font-bold self-end pr-1">
-                  +{dayEvents.length - 2} daha
-                </span>
-              )}
-            </div>
+                )}
+              </div>
+
+              {/* Mobile view: small color-coded dots */}
+              <div className="flex md:hidden w-full justify-center gap-1 mt-1.5 flex-wrap">
+                {dayEvents.slice(0, 4).map((ev, index) => {
+                  let dotColor = 'bg-violet-500 shadow-[0_0_4px_rgba(139,92,246,0.5)]'
+                  if (ev.type === 'equipment') dotColor = 'bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.5)]'
+                  if (ev.type === 'project') dotColor = 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]'
+                  if (ev.type === 'meeting') dotColor = 'bg-sky-500 shadow-[0_0_4px_rgba(14,165,233,0.5)]'
+                  if (ev.type === 'task') dotColor = 'bg-fuchsia-500 shadow-[0_0_4px_rgba(217,70,239,0.5)]'
+                  return (
+                    <span 
+                      key={index} 
+                      className={`w-1.5 h-1.5 rounded-full block ${dotColor}`}
+                      title={ev.title}
+                    ></span>
+                  )
+                })}
+                {dayEvents.length > 4 && (
+                  <span className="text-[7px] text-gray-500 font-bold leading-none self-center">
+                    +
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </button>
       )
@@ -641,7 +667,7 @@ export default function CalendarPanel({ currentUser, addToast, showConfirm }) {
                           )}
                           
                           {/* Delete Local Event Button */}
-                          {isAdmin && ev.type === 'meeting' && (
+                          {isAdmin && ev.type !== 'google' && ev.type !== 'project' && ev.type !== 'task' && (
                             <button
                               onClick={() => handleDeleteEvent(ev.id, ev.title)}
                               className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"

@@ -87,7 +87,7 @@ export async function GET(request) {
     financeRecords.forEach(record => {
       if (record.type === 'GELIR') {
         netCashStatus += record.amount
-      } else if (record.type === 'GIDER') {
+      } else if (record.type === 'GIDER' || record.type === 'KAR_ALMA') {
         netCashStatus -= record.amount
       }
     })

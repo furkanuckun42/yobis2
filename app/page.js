@@ -531,6 +531,7 @@ export default function Home() {
     // Bildirimleri polleme (her 30 saniyede bir)
     const pollInterval = setInterval(() => {
       fetchNotifications()
+      checkAndAlertNewTasks()
     }, 30000)
 
     return () => {

@@ -111,6 +111,10 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
       addToast('Lütfen geçerli bir tutar girin!', 'warning')
       return
     }
+    if (form.type === 'KAR_ALMA' && !isAdmin) {
+      addToast('Kâr alma işlemini sadece yöneticiler gerçekleştirebilir!', 'error')
+      return
+    }
     if (form.category === 'CARI' && !form.cariId) {
       addToast('Cari işlem için lütfen bir firma seçin!', 'warning')
       return
@@ -304,7 +308,8 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
   const kasaRecords = records.filter(r => r.category === 'KASA')
   const totalIncome = kasaRecords.filter(r => r.type === 'GELIR').reduce((sum, r) => sum + r.amount, 0)
   const totalExpense = kasaRecords.filter(r => r.type === 'GIDER').reduce((sum, r) => sum + r.amount, 0)
-  const netBalance = totalIncome - totalExpense
+  const totalKarAlma = kasaRecords.filter(r => r.type === 'KAR_ALMA').reduce((sum, r) => sum + r.amount, 0)
+  const netBalance = totalIncome - totalExpense - totalKarAlma
 
   // Bugünün kasa toplamları (personel)
   const todayKasa = kasaRecords.filter(r => getLocalDateString(new Date(r.date)) === todayStr)
@@ -424,11 +429,11 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
             {/* İşlem Türü */}
             <div>
               <label className="text-xs text-gray-400 block mb-1">İşlem Türü</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, type: 'GELIR' })}
-                  className={`py-2 px-4 rounded-xl text-sm font-semibold border flex items-center justify-center gap-1.5 transition ${
+                  className={`py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold border flex items-center justify-center gap-1.5 transition ${
                     form.type === 'GELIR'
                       ? 'bg-emerald-600 border-emerald-500 text-white'
                       : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
@@ -440,7 +445,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, type: 'GIDER' })}
-                  className={`py-2 px-4 rounded-xl text-sm font-semibold border flex items-center justify-center gap-1.5 transition ${
+                  className={`py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold border flex items-center justify-center gap-1.5 transition ${
                     form.type === 'GIDER'
                       ? 'bg-rose-600 border-rose-500 text-white'
                       : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
@@ -449,41 +454,57 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
                   <MinusCircle className="w-4 h-4" />
                   <span>Gider</span>
                 </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, type: 'KAR_ALMA', category: 'KASA', customerId: '', cariId: '' })}
+                    className={`py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold border flex items-center justify-center gap-1.5 transition ${
+                      form.type === 'KAR_ALMA'
+                        ? 'bg-amber-600 border-amber-500 text-white shadow-md'
+                        : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                    <span>Kâr Alma</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Kategori: Kasa / Cari — GELIR veya GIDER fark etmeksizin göster */}
-            <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                {form.type === 'GELIR' ? 'Gelir Kaynağı' : 'Gider Kaynağı'}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, category: 'KASA', customerId: '', cariId: '' })}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
-                    form.category === 'KASA'
-                      ? 'bg-violet-600 border-violet-500 text-white'
-                      : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Banknote className="w-4 h-4" />
-                  <span>{form.type === 'GELIR' ? 'Kasa Girişi' : 'Kasa Çıkışı'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, category: 'CARI', customerId: '', cariId: '' })}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
-                    form.category === 'CARI'
-                      ? 'bg-amber-600 border-amber-500 text-white'
-                      : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4" />
-                  <span>{form.type === 'GELIR' ? 'Cari (Borçtan Düşer)' : 'Cari'}</span>
-                </button>
+            {/* Kategori: Kasa / Cari — GELIR veya GIDER fark etmeksizin göster (KAR_ALMA değilse) */}
+            {form.type !== 'KAR_ALMA' && (
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">
+                  {form.type === 'GELIR' ? 'Gelir Kaynağı' : 'Gider Kaynağı'}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, category: 'KASA', customerId: '', cariId: '' })}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
+                      form.category === 'KASA'
+                        ? 'bg-violet-600 border-violet-500 text-white'
+                        : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                    <span>{form.type === 'GELIR' ? 'Kasa Girişi' : 'Kasa Çıkışı'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, category: 'CARI', customerId: '', cariId: '' })}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
+                      form.category === 'CARI'
+                        ? 'bg-amber-600 border-amber-500 text-white'
+                        : 'bg-violet-950/10 border-violet-500/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>{form.type === 'GELIR' ? 'Cari (Borçtan Düşer)' : 'Cari'}</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Firma Seçimi — CARİ seçiliyse göster */}
             {form.category === 'CARI' && (
@@ -610,7 +631,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
             </h3>
 
             {isAdmin && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Grafik Butonu */}
                 <button
                   type="button"
@@ -687,82 +708,153 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
               {isAdmin ? 'Finansal hareket bulunamadı. Gelir/Gider ekleyerek başlayın.' : 'Bugüne ait kayıt bulunamadı.'}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-violet-500/10 glass max-h-[60vh] overflow-y-auto pr-1">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-violet-500/10 text-xs text-gray-500 uppercase tracking-wider bg-violet-950/10">
-                    <th className="p-4">Tarih</th>
-                    <th className="p-4">Açıklama</th>
-                    {isAdmin && <th className="p-4">Kategori</th>}
-                    <th className="p-4">Tür</th>
-                    <th className="p-4 text-right">Tutar</th>
-                    {isAdmin && <th className="p-4 text-center">Sil</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.map((r) => (
-                    <tr key={r.id} className="border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300">
-                      <td className="p-4 font-medium whitespace-nowrap">
-                        {new Date(r.date).toLocaleDateString('tr-TR')}
-                      </td>
-                      <td className="p-4">
-                        <div>
-                          {r.description || <span className="text-gray-600 italic">Açıklama yok</span>}
-                        </div>
-                        {r.customer && (
-                          <div className="text-[10px] text-violet-400 mt-0.5 flex items-center gap-1">
-                            <Building2 className="w-3 h-3 text-violet-400" />
-                            <span>Müşteri: {r.customer.name}</span>
-                          </div>
-                        )}
-                        {r.cari && (
-                          <div className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1">
-                            <Building2 className="w-3 h-3 text-amber-400" />
-                            <span>Firma (Cari): {r.cari.name}</span>
-                          </div>
-                        )}
-                      </td>
-                      {isAdmin && (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto rounded-2xl border border-violet-500/10 glass max-h-[60vh] overflow-y-auto pr-1">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-violet-500/10 text-xs text-gray-500 uppercase tracking-wider bg-violet-950/10">
+                      <th className="p-4">Tarih</th>
+                      <th className="p-4">Açıklama</th>
+                      {isAdmin && <th className="p-4">Kategori</th>}
+                      <th className="p-4">Tür</th>
+                      <th className="p-4 text-right">Tutar</th>
+                      {isAdmin && <th className="p-4 text-center">Sil</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((r) => (
+                      <tr key={r.id} className="border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300">
+                        <td className="p-4 font-medium whitespace-nowrap">
+                          {new Date(r.date).toLocaleDateString('tr-TR')}
+                        </td>
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 text-[10px] rounded-full border font-bold ${
+                          <div>
+                            {r.description || <span className="text-gray-600 italic">Açıklama yok</span>}
+                          </div>
+                          {r.customer && (
+                            <div className="text-[10px] text-violet-400 mt-0.5 flex items-center gap-1">
+                              <Building2 className="w-3 h-3 text-violet-400" />
+                              <span>Müşteri: {r.customer.name}</span>
+                            </div>
+                          )}
+                          {r.cari && (
+                            <div className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1">
+                              <Building2 className="w-3 h-3 text-amber-400" />
+                              <span>Firma (Cari): {r.cari.name}</span>
+                            </div>
+                          )}
+                        </td>
+                        {isAdmin && (
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 text-[10px] rounded-full border font-bold ${
+                              r.category === 'CARI'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                            }`}>
+                              {r.category === 'CARI' ? 'CARİ' : 'KASA'}
+                            </span>
+                          </td>
+                        )}
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 text-xs rounded-full border font-bold ${
+                            r.type === 'GELIR'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : r.type === 'KAR_ALMA'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                          }`}>
+                            {r.type === 'KAR_ALMA' ? 'KÂR ALMA' : r.type}
+                          </span>
+                        </td>
+                        <td className={`p-4 text-right font-bold whitespace-nowrap ${
+                          r.type === 'GELIR' ? 'text-emerald-400' : (r.type === 'KAR_ALMA' ? 'text-amber-400' : 'text-rose-400')
+                        }`}>
+                          {r.type === 'GELIR' ? '+' : '-'} {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(r.amount)}
+                        </td>
+                        {isAdmin && (
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => handleDelete(r.id)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                              title="İşlemi Sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="md:hidden space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {filteredRecords.map((r) => (
+                  <div key={r.id} className="p-4 rounded-xl border border-violet-500/10 glass flex flex-col gap-2.5 text-xs text-gray-300">
+                    <div className="flex justify-between items-center text-[10px] text-gray-400">
+                      <span className="font-semibold">{new Date(r.date).toLocaleDateString('tr-TR')}</span>
+                      <div className="flex gap-1">
+                        {isAdmin && (
+                          <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${
                             r.category === 'CARI'
                               ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               : 'bg-violet-500/10 text-violet-400 border-violet-500/20'
                           }`}>
                             {r.category === 'CARI' ? 'CARİ' : 'KASA'}
                           </span>
-                        </td>
-                      )}
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 text-xs rounded-full border font-bold ${
+                        )}
+                        <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${
                           r.type === 'GELIR'
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            : r.type === 'KAR_ALMA'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                         }`}>
-                          {r.type}
+                          {r.type === 'KAR_ALMA' ? 'KÂR ALMA' : r.type}
                         </span>
-                      </td>
-                      <td className={`p-4 text-right font-bold whitespace-nowrap ${
-                        r.type === 'GELIR' ? 'text-emerald-400' : 'text-rose-400'
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="font-bold text-white whitespace-normal break-words">
+                        {r.description || <span className="text-gray-600 italic">Açıklama yok</span>}
+                      </div>
+                      {r.customer && (
+                        <div className="text-[10px] text-violet-400 flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          <span>Müşteri: {r.customer.name}</span>
+                        </div>
+                      )}
+                      {r.cari && (
+                        <div className="text-[10px] text-amber-400 flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          <span>Firma (Cari): {r.cari.name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-violet-500/5 mt-0.5">
+                      <span className={`text-sm font-extrabold ${
+                        r.type === 'GELIR' ? 'text-emerald-400' : (r.type === 'KAR_ALMA' ? 'text-amber-400' : 'text-rose-400')
                       }`}>
                         {r.type === 'GELIR' ? '+' : '-'} {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(r.amount)}
-                      </td>
+                      </span>
                       {isAdmin && (
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleDelete(r.id)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
-                            title="İşlemi Sil"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                          title="İşlemi Sil"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
