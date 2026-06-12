@@ -586,35 +586,35 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
       <div className="flex flex-row flex-nowrap bg-violet-950/30 p-1 rounded-xl border border-violet-500/10 w-full md:w-fit overflow-x-auto gap-1">
         <button
           onClick={() => setActiveTabFilter('active')}
-          className={`flex-1 md:flex-initial flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'active'
               ? 'bg-violet-600 text-white glow-purple shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <Clock className="w-3.5 h-3.5" />
+          <Clock className="w-3.5 h-3.5 flex-shrink-0" />
           <span>Devam Edenler ({activeCards.length})</span>
         </button>
         <button
           onClick={() => setActiveTabFilter('completed')}
-          className={`flex-1 md:flex-initial flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'completed'
               ? 'bg-amber-600/80 text-white glow-amber shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <CreditCard className="w-3.5 h-3.5" />
+          <CreditCard className="w-3.5 h-3.5 flex-shrink-0" />
           <span>Ödeme Bekleyenler ({completedCards.length})</span>
         </button>
         <button
           onClick={() => setActiveTabFilter('archived')}
-          className={`flex-1 md:flex-initial flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'archived'
               ? 'bg-emerald-600/80 text-white glow-green shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
+          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
           <span>Ödenenler & Arşiv ({archivedCards.length})</span>
         </button>
       </div>
@@ -894,7 +894,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                 <select
                   value={itemState.assignedUserId || ''}
                   onChange={(e) => setItemState({ assignedUserId: e.target.value })}
-                  className="w-full text-[10px] pl-7 pr-7 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer appearance-none"
+                  className="w-full text-[10px] pl-8 pr-8 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer appearance-none"
                 >
                   <option value="" className="bg-[#05020c] text-white">Kişi Ata...</option>
                   {users.map(u => (
@@ -913,7 +913,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                   type="date"
                   value={itemState.dueDate || ''}
                   onChange={(e) => setItemState({ dueDate: e.target.value })}
-                  className="w-full text-[10px] pl-7 pr-2 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer"
+                  className="w-full text-[10px] pl-8 pr-2 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer"
                 />
               </div>
             </div>
