@@ -776,7 +776,7 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
                           <td className="p-4 text-center">
                             <button
                               onClick={() => handleDelete(r.id)}
-                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                              className="w-9 h-9 flex items-center justify-center mx-auto bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
                               title="İşlemi Sil"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -844,10 +844,10 @@ export default function Finance({ onAction, currentUser, addToast, showConfirm }
                       {isAdmin && (
                         <button
                           onClick={() => handleDelete(r.id)}
-                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                          className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
                           title="İşlemi Sil"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
