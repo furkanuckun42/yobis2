@@ -17,7 +17,8 @@ import {
   X,
   Pencil,
   Download,
-  Printer
+  Printer,
+  ChevronDown
 } from 'lucide-react'
 
 // Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
@@ -475,13 +476,13 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
           <p className="text-gray-400 mt-1">Aylık bazda müşterilere sunulacak ürünlerin takibini yapın.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
           {/* Month Picker */}
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="text-sm px-4 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-gray-300 focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px]"
+            className="text-sm px-4 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-gray-300 focus:outline-none focus:border-violet-500 transition cursor-pointer min-h-[38px] flex-shrink-0"
           />
 
           {cards.length > 0 && (
@@ -489,31 +490,31 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
               {/* Excel İndir */}
               <button
                 onClick={exportCardsToCSV}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#1b1406] hover:bg-amber-950/20 text-amber-400 border border-amber-500/20 text-xs font-semibold rounded-xl transition cursor-pointer min-h-[38px]"
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#1b1406] hover:bg-amber-950/20 text-amber-400 border border-amber-500/20 text-xs font-semibold rounded-xl transition cursor-pointer min-h-[38px] flex-shrink-0 whitespace-nowrap"
                 title="Aylık Kart Listesini Excel Olarak İndir"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 flex-shrink-0" />
                 <span>Excel</span>
               </button>
               
               {/* Yazdır */}
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-2 bg-violet-950/20 border border-violet-500/10 text-gray-300 hover:text-white text-xs font-semibold rounded-xl transition cursor-pointer min-h-[38px]"
+                className="flex items-center gap-1.5 px-3 py-2 bg-violet-950/20 border border-violet-500/10 text-gray-300 hover:text-white text-xs font-semibold rounded-xl transition cursor-pointer min-h-[38px] flex-shrink-0 whitespace-nowrap"
                 title="Listeyi Yazdır"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-4 h-4 flex-shrink-0" />
                 <span>Yazdır</span>
               </button>
             </>
           )}
 
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <button
               onClick={() => setIsModalOpen(!isModalOpen)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20"
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-lg shadow-violet-600/20 whitespace-nowrap"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 flex-shrink-0" />
               <span>Aylık Kart Oluştur</span>
             </button>
 
@@ -878,10 +879,10 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
               
               <button
                 onClick={() => handleAddItem(card.id)}
-                className="p-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl cursor-pointer transition shadow-md shadow-violet-600/10"
+                className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-violet-600 hover:bg-violet-500 text-white rounded-xl cursor-pointer transition shadow-md shadow-violet-600/10"
                 title="Ekle"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
 
@@ -893,7 +894,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                 <select
                   value={itemState.assignedUserId || ''}
                   onChange={(e) => setItemState({ assignedUserId: e.target.value })}
-                  className="w-full text-[10px] pl-7 pr-2 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer"
+                  className="w-full text-[10px] pl-7 pr-7 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer appearance-none"
                 >
                   <option value="" className="bg-[#05020c] text-white">Kişi Ata...</option>
                   {users.map(u => (
@@ -902,6 +903,7 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-2.5 w-3 h-3 text-gray-400 pointer-events-none" />
               </div>
 
               {/* Due Date Picker */}

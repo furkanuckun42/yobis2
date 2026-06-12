@@ -681,7 +681,7 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
                         {isAdmin && log.status === 'ODENMEDI' && (
                           <button
                             onClick={() => handleMarkPaid(log.id)}
-                            className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition cursor-pointer"
+                            className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition cursor-pointer"
                             title="Ödendi Yap"
                           >
                             <Check className="w-4 h-4" />
@@ -690,13 +690,13 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
                         {(isAdmin || log.status === 'ODENMEDI') ? (
                           <button
                             onClick={() => handleDeleteLog(log.id)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                            className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
                             title="Kaydı Sil"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         ) : (
-                          <span className="p-1 text-gray-600" title="Ödenmiş kayıtlar kilitlidir.">
+                          <span className="w-9 h-9 flex items-center justify-center flex-shrink-0 text-gray-600" title="Ödenmiş kayıtlar kilitlidir.">
                             <Lock className="w-3.5 h-3.5" />
                           </span>
                         )}
