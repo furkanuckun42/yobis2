@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Calendar as CalendarIcon, 
   PlusCircle, 
@@ -12,7 +12,9 @@ import {
   X,
   DollarSign,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Printer
 } from 'lucide-react'
 
 // Yerel saat dilimine göre YYYY-MM-DD formatında tarih üretir (timezone-safe)
@@ -42,44 +44,46 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
   // Selected Filter for Admin
   const [filterEmployeeId, setFilterEmployeeId] = useState('')
 
-  // Ay Filtresi
-  const now = new Date()
-  const [filterMonth, setFilterMonth] = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  )
-  const [showAllMonths, setShowAllMonths] = useState(false)
+  // Selected Month filter (Finance style)
+  const [selectedMonth, setSelectedMonth] = useState('ALL')
 
-  const prevFilterMonth = () => {
-    setFilterMonth(prev => {
-      const [y, m] = prev.split('-').map(Number)
-      const d = new Date(y, m - 2, 1)
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const uniqueMonths = useMemo(() => {
+    const months = new Set()
+    logs.forEach(log => {
+      if (log.date) {
+        months.add(log.date.substring(0, 7)) // YYYY-MM
+      }
     })
-  }
+    return Array.from(months).sort().reverse() // Son aylar en üstte
+  }, [logs])
 
-  const nextFilterMonth = () => {
-    setFilterMonth(prev => {
-      const [y, m] = prev.split('-').map(Number)
-      const d = new Date(y, m, 1)
-      const nowDate = new Date()
-      const maxStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`
-      const newStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      if (newStr > maxStr) return prev
-      return newStr
-    })
-  }
-
-  const filterMonthLabel = (() => {
-    const [y, m] = filterMonth.split('-').map(Number)
+  const formatMonthYear = (monthStr) => {
+    if (!monthStr || monthStr === 'ALL') return 'Tüm Zamanlar'
+    const [y, m] = monthStr.split('-').map(Number)
     const names = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
     return `${names[m - 1]} ${y}`
-  })()
+  }
 
-  const isCurrentFilterMonth = (() => {
-    const nowDate = new Date()
-    const currentStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`
-    return filterMonth === currentStr
-  })()
+  const exportToCSV = () => {
+    const headers = ['Tarih', 'Çalışan', 'Yevmiye Türü', 'Tutar', 'Ödeme Durumu', 'Açıklama']
+    const rows = filteredLogs.map(log => [
+      new Date(log.date).toLocaleDateString('tr-TR'),
+      log.employee?.name || '',
+      log.type === 'TAM' ? 'TAM GÜN' : log.type === 'YARIM' ? 'YARIM GÜN' : 'UZAKTAN',
+      log.amount.toString(),
+      log.status === 'ODENDI' ? 'ÖDENDİ' : 'ÖDENMEDİ',
+      log.description || ''
+    ])
+    const csvContent = "\uFEFF" + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `is_kayit_defteri_${selectedMonth === 'ALL' ? 'tum_zamanlar' : selectedMonth}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const fetchLogs = async () => {
     try {
@@ -127,7 +131,7 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
 
   useEffect(() => {
     setSelectedLogs([])
-  }, [filterEmployeeId])
+  }, [filterEmployeeId, selectedMonth])
 
   const handleAddLog = async (e) => {
     e.preventDefault()
@@ -244,11 +248,10 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
     if (isAdmin && filterEmployeeId !== '') {
       if (log.employeeId !== filterEmployeeId) return false
     }
-    // Ay filtresi (tüm ay seçili değilse)
-    if (!showAllMonths) {
-      const logDate = new Date(log.date)
-      const logMonthStr = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}`
-      if (logMonthStr !== filterMonth) return false
+    // Ay filtresi
+    if (selectedMonth !== 'ALL') {
+      const logMonthStr = log.date.substring(0, 7) // YYYY-MM
+      if (logMonthStr !== selectedMonth) return false
     }
     return true
   })
@@ -512,57 +515,62 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-bold text-lg text-white">Çalışma Geçmişi</h3>
-            <div className="flex items-center gap-2">
-              {/* Ay Navigasyonu */}
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-950/30 border border-violet-500/15">
-                <button
-                  onClick={prevFilterMonth}
-                  className="p-1 hover:bg-violet-950/40 rounded-lg text-violet-400 transition cursor-pointer"
-                  title="Önceki Ay"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs font-bold text-violet-300 min-w-[100px] text-center">{filterMonthLabel}</span>
-                <button
-                  onClick={nextFilterMonth}
-                  disabled={isCurrentFilterMonth}
-                  className="p-1 hover:bg-violet-950/40 rounded-lg text-violet-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Sonraki Ay"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-              {/* Tüm aylar toggle */}
-              <button
-                onClick={() => setShowAllMonths(v => !v)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                  showAllMonths
-                    ? 'bg-violet-600 border-violet-500 text-white'
-                    : 'bg-violet-950/20 border-violet-500/20 text-gray-400 hover:text-white'
-                }`}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Ay Filtresi */}
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="text-xs px-3 py-2 rounded-xl bg-violet-950/20 border border-violet-500/10 text-white focus:outline-none focus:border-violet-500 transition cursor-pointer"
               >
-                Tüm Aylar
-              </button>
+                <option value="ALL">Tüm Zamanlar</option>
+                {uniqueMonths.map(m => (
+                  <option key={m} value={m}>{formatMonthYear(m)}</option>
+                ))}
+              </select>
+
+              {filteredLogs.length > 0 && (
+                <>
+                  {/* Excel İndir */}
+                  <button
+                    type="button"
+                    onClick={exportToCSV}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#1b1406] hover:bg-amber-950/20 text-amber-400 border border-amber-500/20 text-xs font-bold rounded-xl transition cursor-pointer"
+                    title="Excel / CSV Olarak İndir"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Excel</span>
+                  </button>
+
+                  {/* Yazdır */}
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-violet-950/20 border border-violet-500/10 text-gray-300 hover:text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                    title="Listeyi Yazdır"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Yazdır</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Seçilen Ay Özet Kutusu */}
-          {!showAllMonths && (
-            <div className="flex gap-3 text-xs">
-              <span className="px-3 py-1.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-violet-300">
-                <span className="text-gray-500 mr-1">Kayıt:</span>
-                <span className="font-bold">{filteredLogs.length}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-rose-950/20 border border-rose-500/10 text-rose-300">
-                <span className="text-gray-500 mr-1">Bekleyen:</span>
-                <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENMEDI').reduce((s,l) => s + l.amount, 0))}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/10 text-emerald-300">
-                <span className="text-gray-500 mr-1">Ödenen:</span>
-                <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENDI').reduce((s,l) => s + l.amount, 0))}</span>
-              </span>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2 text-[10px] sm:text-xs">
+            <span className="px-3 py-1.5 rounded-xl bg-violet-950/20 border border-violet-500/10 text-violet-300">
+              <span className="text-gray-500 mr-1">Kayıt:</span>
+              <span className="font-bold">{filteredLogs.length}</span>
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-rose-950/20 border border-rose-500/10 text-rose-300">
+              <span className="text-gray-500 mr-1">Bekleyen:</span>
+              <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENMEDI').reduce((s,l) => s + l.amount, 0))}</span>
+            </span>
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-950/20 border border-emerald-500/10 text-emerald-300">
+              <span className="text-gray-500 mr-1">Ödenen:</span>
+              <span className="font-bold">{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(filteredLogs.filter(l => l.status === 'ODENDI').reduce((s,l) => s + l.amount, 0))}</span>
+            </span>
+          </div>
 
           {isAdmin && selectedLogs.length > 0 && (
               <div className="flex items-center gap-2 p-2 rounded-xl bg-violet-600/10 border border-violet-500/20 animate-fade-in">
@@ -592,65 +600,147 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="text-center py-24 text-gray-500 text-sm rounded-2xl glass">
-              {showAllMonths ? 'Kayıtlı çalışma mesaisi bulunamadı.' : `${filterMonthLabel} ayına ait çalışma kaydı bulunamadı.`}
+              {selectedMonth === 'ALL' ? 'Kayıtlı çalışma mesaisi bulunamadı.' : `${formatMonthYear(selectedMonth)} ayına ait çalışma kaydı bulunamadı.`}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-violet-500/10 glass max-h-[60vh] overflow-y-auto pr-1">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-violet-500/10 text-xs text-gray-500 uppercase tracking-wider bg-violet-950/10">
-                    {isAdmin && (
-                      <th className="p-4 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          onChange={handleSelectAll}
-                          disabled={selectableLogs.length === 0}
-                          className="w-4 h-4 rounded border-violet-500/30 text-violet-600 focus:ring-violet-500/20 bg-violet-950/20 cursor-pointer"
-                        />
-                      </th>
-                    )}
-                    <th className="p-4">Tarih</th>
-                    {isAdmin && <th className="p-4">Çalışan</th>}
-                    <th className="p-4">Yevmiye Türü</th>
-                    <th className="p-4">Tutar</th>
-                    <th className="p-4">Ödeme Durumu</th>
-                    <th className="p-4 text-center">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id} className={`border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300 transition-colors ${selectedLogs.includes(log.id) ? 'bg-violet-600/5' : ''}`}>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto rounded-2xl border border-violet-500/10 glass max-h-[60vh] overflow-y-auto pr-1">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-violet-500/10 text-xs text-gray-500 uppercase tracking-wider bg-violet-950/10">
                       {isAdmin && (
-                        <td className="p-4 text-center">
-                          {log.status === 'ODENMEDI' ? (
-                            <input
-                              type="checkbox"
-                              checked={selectedLogs.includes(log.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedLogs([...selectedLogs, log.id])
-                                } else {
-                                  setSelectedLogs(selectedLogs.filter(id => id !== log.id))
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-violet-500/30 text-violet-600 focus:ring-violet-500/20 bg-violet-950/20 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="w-4 h-4 inline-block" />
+                        <th className="p-4 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isAllSelected}
+                            onChange={handleSelectAll}
+                            disabled={selectableLogs.length === 0}
+                            className="w-4 h-4 rounded border-violet-500/30 text-violet-600 focus:ring-violet-500/20 bg-violet-950/20 cursor-pointer"
+                          />
+                        </th>
+                      )}
+                      <th className="p-4">Tarih</th>
+                      {isAdmin && <th className="p-4">Çalışan</th>}
+                      <th className="p-4">Yevmiye Türü</th>
+                      <th className="p-4">Tutar</th>
+                      <th className="p-4">Ödeme Durumu</th>
+                      <th className="p-4 text-center">İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((log) => (
+                      <tr key={log.id} className={`border-b border-violet-500/5 hover:bg-violet-950/10 text-sm text-gray-300 transition-colors ${selectedLogs.includes(log.id) ? 'bg-violet-600/5' : ''}`}>
+                        {isAdmin && (
+                          <td className="p-4 text-center">
+                            {log.status === 'ODENMEDI' ? (
+                              <input
+                                type="checkbox"
+                                checked={selectedLogs.includes(log.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedLogs([...selectedLogs, log.id])
+                                  } else {
+                                    setSelectedLogs(selectedLogs.filter(id => id !== log.id))
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-violet-500/30 text-violet-600 focus:ring-violet-500/20 bg-violet-950/20 cursor-pointer"
+                              />
+                            ) : (
+                              <span className="w-4 h-4 inline-block" />
+                            )}
+                          </td>
+                        )}
+                        <td className="p-4 font-medium whitespace-nowrap">
+                          {new Date(log.date).toLocaleDateString('tr-TR')}
+                        </td>
+                        {isAdmin && (
+                          <td className="p-4 font-bold text-white">
+                            {log.employee?.name}
+                          </td>
+                        )}
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold border ${
+                            log.type === 'TAM'
+                              ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                              : log.type === 'YARIM'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-teal-500/10 text-teal-400 border-teal-500/20'
+                          }`}>
+                            {log.type === 'TAM' ? 'TAM GÜN' : log.type === 'YARIM' ? 'YARIM GÜN' : 'UZAKTAN'}
+                          </span>
+                          {log.type === 'UZAKTAN' && log.description && (
+                            <div className="text-xs text-gray-400 mt-1 max-w-[180px] break-words italic">
+                              {log.description}
+                            </div>
                           )}
                         </td>
-                      )}
-                      <td className="p-4 font-medium whitespace-nowrap">
-                        {new Date(log.date).toLocaleDateString('tr-TR')}
-                      </td>
-                      {isAdmin && (
                         <td className="p-4 font-bold text-white">
-                          {log.employee?.name}
+                          {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(log.amount)}
                         </td>
-                      )}
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold border ${
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold border ${
+                            log.status === 'ODENDI'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                          }`}>
+                            {log.status === 'ODENDI' ? 'ÖDENDİ' : 'ÖDENMEDİ'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center flex items-center justify-center gap-2">
+                          {isAdmin && log.status === 'ODENMEDI' && (
+                            <button
+                              onClick={() => handleMarkPaid(log.id)}
+                              className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition cursor-pointer"
+                              title="Ödendi Yap"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(isAdmin || log.status === 'ODENMEDI') ? (
+                            <button
+                              onClick={() => handleDeleteLog(log.id)}
+                              className="w-9 h-9 flex items-center justify-center flex-shrink-0 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition cursor-pointer"
+                              title="Kaydı Sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="w-9 h-9 flex items-center justify-center flex-shrink-0 text-gray-600" title="Ödenmiş kayıtlar kilitlidir.">
+                              <Lock className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="md:hidden space-y-3 max-h-[60vh] overflow-y-auto pr-1 animate-fade-in">
+                {filteredLogs.map((log) => (
+                  <div key={log.id} className={`p-4 rounded-xl border border-violet-500/10 glass flex flex-col gap-2.5 text-xs text-gray-300 ${selectedLogs.includes(log.id) ? 'bg-violet-600/5 border-violet-500/20' : ''}`}>
+                    <div className="flex justify-between items-center text-[10px] text-gray-400">
+                      <div className="flex items-center gap-2">
+                        {isAdmin && log.status === 'ODENMEDI' && (
+                          <input
+                            type="checkbox"
+                            checked={selectedLogs.includes(log.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedLogs([...selectedLogs, log.id])
+                              } else {
+                                setSelectedLogs(selectedLogs.filter(id => id !== log.id))
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-violet-500/30 text-violet-600 focus:ring-violet-500/20 bg-violet-950/20 cursor-pointer"
+                          />
+                        )}
+                        <span className="font-semibold">{new Date(log.date).toLocaleDateString('tr-TR')}</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${
                           log.type === 'TAM'
                             ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
                             : log.type === 'YARIM'
@@ -659,25 +749,34 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
                         }`}>
                           {log.type === 'TAM' ? 'TAM GÜN' : log.type === 'YARIM' ? 'YARIM GÜN' : 'UZAKTAN'}
                         </span>
-                        {log.type === 'UZAKTAN' && log.description && (
-                          <div className="text-xs text-gray-400 mt-1 max-w-[180px] break-words italic">
-                            {log.description}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4 font-bold text-white">
-                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(log.amount)}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold border ${
+                        <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${
                           log.status === 'ODENDI'
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                             : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                         }`}>
                           {log.status === 'ODENDI' ? 'ÖDENDİ' : 'ÖDENMEDİ'}
                         </span>
-                      </td>
-                      <td className="p-4 text-center flex items-center justify-center gap-2">
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      {isAdmin && (
+                        <div className="font-bold text-white text-sm">
+                          {log.employee?.name}
+                        </div>
+                      )}
+                      {log.type === 'UZAKTAN' && log.description && (
+                        <div className="text-xs text-gray-400 italic break-words bg-violet-950/10 border border-violet-500/5 p-2.5 rounded-lg mt-1">
+                          {log.description}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-violet-500/5 mt-0.5">
+                      <span className="text-sm font-extrabold text-white">
+                        {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(log.amount)}
+                      </span>
+                      <div className="flex items-center gap-1.5">
                         {isAdmin && log.status === 'ODENMEDI' && (
                           <button
                             onClick={() => handleMarkPaid(log.id)}
@@ -700,12 +799,12 @@ export default function WorkLogs({ currentUser, addToast, showConfirm }) {
                             <Lock className="w-3.5 h-3.5" />
                           </span>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

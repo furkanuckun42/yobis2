@@ -586,36 +586,45 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
       <div className="flex flex-row flex-nowrap bg-violet-950/30 p-1 rounded-xl border border-violet-500/10 w-full md:w-fit overflow-x-auto gap-1">
         <button
           onClick={() => setActiveTabFilter('active')}
-          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'active'
               ? 'bg-violet-600 text-white glow-purple shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Devam Edenler ({activeCards.length})</span>
+          <Clock className="w-3.5 h-3.5 flex-shrink-0 hidden sm:inline-block" />
+          <span>
+            <span className="inline sm:hidden">Devam Eden ({activeCards.length})</span>
+            <span className="hidden sm:inline">Devam Edenler ({activeCards.length})</span>
+          </span>
         </button>
         <button
           onClick={() => setActiveTabFilter('completed')}
-          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'completed'
               ? 'bg-amber-600/80 text-white glow-amber shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <CreditCard className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Ödeme Bekleyenler ({completedCards.length})</span>
+          <CreditCard className="w-3.5 h-3.5 flex-shrink-0 hidden sm:inline-block" />
+          <span>
+            <span className="inline sm:hidden">Ödeme Bekleyen ({completedCards.length})</span>
+            <span className="hidden sm:inline">Ödeme Bekleyenler ({completedCards.length})</span>
+          </span>
         </button>
         <button
           onClick={() => setActiveTabFilter('archived')}
-          className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-shrink-0 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider transition whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTabFilter === 'archived'
               ? 'bg-emerald-600/80 text-white glow-green shadow-sm'
               : 'text-gray-400 hover:text-white'
           }`}
         >
-          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Ödenenler & Arşiv ({archivedCards.length})</span>
+          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 hidden sm:inline-block" />
+          <span>
+            <span className="inline sm:hidden">Ödenen ({archivedCards.length})</span>
+            <span className="hidden sm:inline">Ödenenler & Arşiv ({archivedCards.length})</span>
+          </span>
         </button>
       </div>
 
@@ -719,22 +728,24 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
               <p className="text-xs text-gray-500 italic">Eklenecek madde bulunmuyor.</p>
             ) : (
               card.items.map(item => (
-                <div key={item.id} className="flex flex-col p-2.5 rounded-xl bg-violet-950/20 border border-violet-500/5 hover:border-violet-500/10 hover:bg-violet-950/30 transition-all duration-200">
-                  {/* Row 1: Checkbox & Title (or title editor) */}
-                  <div className="flex items-start justify-between gap-2.5 min-w-0 w-full">
-                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                      <button
-                        disabled={isArchived}
-                        onClick={() => handleToggleItem(item, !item.completed)}
-                        className={`p-0.5 rounded border transition cursor-pointer flex-shrink-0 mt-0.5 ${
-                          item.completed
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400'
-                            : 'border-violet-500/25 hover:border-violet-500 text-transparent'
-                        }`}
-                      >
-                        <Check className="w-3 h-3 stroke-[3]" />
-                      </button>
+                <div key={item.id} className="flex p-2.5 rounded-xl bg-violet-950/20 border border-violet-500/5 hover:border-violet-500/10 hover:bg-violet-950/30 transition-all duration-200 gap-2.5 items-start">
+                  {/* Left Column: Checkbox */}
+                  <button
+                    disabled={isArchived}
+                    onClick={() => handleToggleItem(item, !item.completed)}
+                    className={`w-4 h-4 flex items-center justify-center rounded border transition cursor-pointer flex-shrink-0 mt-0.5 ${
+                      item.completed
+                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400'
+                        : 'border-violet-500/25 hover:border-violet-500 text-transparent'
+                    }`}
+                  >
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </button>
 
+                  {/* Right Column: Content and Actions */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                    {/* Row 1: Title (or editor) and Actions */}
+                    <div className="flex items-start justify-between gap-2.5 w-full">
                       {editingItemId === item.id ? (
                         <div className="flex items-center gap-1 flex-1 min-w-0">
                           <input
@@ -775,90 +786,91 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
                           {item.title}
                         </span>
                       )}
+
+                      {/* Edit and Delete Buttons (Only if NOT currently editing this item and NOT archived) */}
+                      {editingItemId !== item.id && !isArchived && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingItemId(item.id)
+                              setEditingItemTitle(item.title)
+                            }}
+                            className="p-1 hover:bg-violet-500/15 text-gray-400 hover:text-violet-300 rounded-lg transition cursor-pointer"
+                            title="Düzenle"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="p-1 hover:bg-rose-500/15 text-gray-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
+                            title="Maddeyi Sil"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Edit and Delete Buttons (Only if NOT currently editing this item and NOT archived) */}
-                    {editingItemId !== item.id && !isArchived && (
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => {
-                            setEditingItemId(item.id)
-                            setEditingItemTitle(item.title)
-                          }}
-                          className="p-1 hover:bg-violet-500/15 text-gray-400 hover:text-violet-300 rounded-lg transition cursor-pointer"
-                          title="Düzenle"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="p-1 hover:bg-rose-500/15 text-gray-400 hover:text-rose-400 rounded-lg transition cursor-pointer"
-                          title="Maddeyi Sil"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                    {/* Row 2: Form inputs (when editing) or static badges (when not editing) */}
+                    {editingItemId === item.id ? (
+                      <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-violet-500/5 mt-0.5">
+                        {/* Inline Assignee Selection */}
+                        <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg hover:border-violet-500/30 transition-all h-6">
+                          <User className="absolute left-1.5 w-2.5 h-2.5 text-violet-400 pointer-events-none" />
+                          <select
+                            value={item.task?.assignedUserId || ''}
+                            onChange={(e) => handleUpdateItemAssignee(item.id, e.target.value)}
+                            className="bg-transparent border-none text-[10px] text-violet-300 focus:outline-none cursor-pointer font-bold pl-5 pr-5 py-0 min-w-[75px] h-full appearance-none"
+                            title="Atanan Kişi"
+                          >
+                            <option value="" className="bg-[#05020c] text-white">Atanmadı</option>
+                            {users.map(u => (
+                              <option key={u.id} value={u.id} className="bg-[#05020c] text-white">
+                                {u.displayName || u.username}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-1.5 w-2.5 h-2.5 text-violet-400 pointer-events-none" />
+                        </div>
+
+                        {/* Inline Due Date Picker */}
+                        <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg hover:border-violet-500/30 transition-all h-6">
+                          <Calendar className="absolute left-1.5 w-2.5 h-2.5 text-violet-400 pointer-events-none" />
+                          <input
+                            type="date"
+                            value={item.task?.dueDate ? getLocalDateString(new Date(item.task.dueDate)) : ''}
+                            onChange={(e) => handleUpdateItemDate(item.id, e.target.value)}
+                            className="bg-transparent border-none text-[10px] text-violet-300 w-[95px] focus:outline-none cursor-pointer font-bold pl-5 py-0 h-full"
+                            title="Teslim Tarihi"
+                          />
+                        </div>
                       </div>
+                    ) : (
+                      (item.task?.assignedUser || item.task?.dueDate) && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-violet-500/5 mt-0.5 text-gray-500">
+                          {item.task?.assignedUser && (
+                            <span
+                              className="px-2 py-0.5 rounded-md bg-violet-950/25 border border-violet-500/10 text-[9px] font-bold text-violet-400/80 uppercase flex items-center gap-1"
+                              title={`Atanan Kişi: ${item.task.assignedUser.displayName || item.task.assignedUser.username}`}
+                            >
+                              <User className="w-2.5 h-2.5" />
+                              {item.task.assignedUser.displayName || item.task.assignedUser.username}
+                            </span>
+                          )}
+
+                          {item.task?.dueDate && (
+                            <span 
+                              className="text-[9px] px-2 py-0.5 rounded-md border font-semibold flex items-center gap-1 border-gray-500/25 text-gray-500 bg-gray-500/5"
+                              title={`Teslim Tarihi: ${new Date(item.task.dueDate).toLocaleDateString('tr-TR')}`}
+                            >
+                              <Calendar className="w-2.5 h-2.5" />
+                              {new Date(item.task.dueDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
-
-                  {/* Row 2: Form inputs (when editing) or static badges (when not editing) */}
-                  {editingItemId === item.id ? (
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-violet-500/5 mt-2">
-                      {/* Inline Assignee Selection */}
-                      <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg px-2 py-0.5 hover:border-violet-500/30 transition-all">
-                        <User className="w-2.5 h-2.5 text-violet-400 mr-1 pointer-events-none" />
-                        <select
-                          value={item.task?.assignedUserId || ''}
-                          onChange={(e) => handleUpdateItemAssignee(item.id, e.target.value)}
-                          className="bg-transparent border-none text-[10px] text-violet-300 focus:outline-none cursor-pointer font-bold p-0 min-w-[65px] h-4"
-                          title="Atanan Kişi"
-                        >
-                          <option value="" className="bg-[#05020c] text-white">Atanmadı</option>
-                          {users.map(u => (
-                            <option key={u.id} value={u.id} className="bg-[#05020c] text-white">
-                              {u.displayName || u.username}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Inline Due Date Picker */}
-                      <div className="relative flex items-center bg-[#0c061a] border border-violet-500/10 rounded-lg px-2 py-0.5 hover:border-violet-500/30 transition-all">
-                        <Calendar className="w-2.5 h-2.5 text-violet-400 mr-1 pointer-events-none" />
-                        <input
-                          type="date"
-                          value={item.task?.dueDate ? getLocalDateString(new Date(item.task.dueDate)) : ''}
-                          onChange={(e) => handleUpdateItemDate(item.id, e.target.value)}
-                          className="bg-transparent border-none text-[10px] text-violet-300 w-[82px] focus:outline-none cursor-pointer font-bold p-0 h-4"
-                          title="Teslim Tarihi"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    (item.task?.assignedUser || item.task?.dueDate) && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-violet-500/5 mt-1.5 text-gray-500">
-                        {item.task?.assignedUser && (
-                          <span
-                            className="px-2 py-0.5 rounded-md bg-violet-950/25 border border-violet-500/10 text-[9px] font-bold text-violet-400/80 uppercase flex items-center gap-1"
-                            title={`Atanan Kişi: ${item.task.assignedUser.displayName || item.task.assignedUser.username}`}
-                          >
-                            <User className="w-2.5 h-2.5" />
-                            {item.task.assignedUser.displayName || item.task.assignedUser.username}
-                          </span>
-                        )}
-
-                        {item.task?.dueDate && (
-                          <span 
-                            className="text-[9px] px-2 py-0.5 rounded-md border font-semibold flex items-center gap-1 border-gray-500/25 text-gray-500 bg-gray-500/5"
-                            title={`Teslim Tarihi: ${new Date(item.task.dueDate).toLocaleDateString('tr-TR')}`}
-                          >
-                            <Calendar className="w-2.5 h-2.5" />
-                            {new Date(item.task.dueDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  )}
                 </div>
               ))
             )}
@@ -889,12 +901,12 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
             {/* Inline Assignment and Due Date Pickers */}
             <div className="flex items-center gap-2">
               {/* Assignee Selection */}
-              <div className="flex-1 relative flex items-center">
+              <div className="relative flex-1 flex items-center bg-violet-950/15 border border-violet-500/5 rounded-lg text-gray-400 focus-within:border-violet-500/20 transition cursor-pointer h-9">
                 <User className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 <select
                   value={itemState.assignedUserId || ''}
                   onChange={(e) => setItemState({ assignedUserId: e.target.value })}
-                  className="w-full text-[10px] pl-8 pr-8 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer appearance-none"
+                  className="w-full bg-transparent border-none text-[10px] text-gray-300 focus:outline-none cursor-pointer pl-8 pr-8 py-1.5 appearance-none h-full"
                 >
                   <option value="" className="bg-[#05020c] text-white">Kişi Ata...</option>
                   {users.map(u => (
@@ -907,13 +919,13 @@ export default function MonthlyCustomers({ currentUser, addToast, showConfirm })
               </div>
 
               {/* Due Date Picker */}
-              <div className="flex-1 relative flex items-center">
+              <div className="relative flex-1 flex items-center bg-violet-950/15 border border-violet-500/5 rounded-lg text-gray-400 focus-within:border-violet-500/20 transition cursor-pointer h-9">
                 <Calendar className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 <input
                   type="date"
                   value={itemState.dueDate || ''}
                   onChange={(e) => setItemState({ dueDate: e.target.value })}
-                  className="w-full text-[10px] pl-8 pr-2 py-1.5 rounded-lg bg-violet-950/15 border border-violet-500/5 text-gray-400 focus:outline-none focus:border-violet-500/20 transition cursor-pointer"
+                  className="w-full bg-transparent border-none text-[10px] text-gray-300 focus:outline-none cursor-pointer pl-8 py-1.5 h-full"
                 />
               </div>
             </div>
